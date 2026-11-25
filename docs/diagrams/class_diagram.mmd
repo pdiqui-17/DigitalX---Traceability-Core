@@ -1,0 +1,293 @@
+classDiagram
+    direction TB
+    class Agent {
+        +String agentId
+        +String kind
+        +String name
+        +String role
+        +DateTime createdAt
+    }
+    class Facility {
+        +String facilityId
+        +String name
+        +String kind
+        +String province
+        +String commune
+        -String addressDetail
+    }
+    class CropProfile {
+        +String cropProfileId
+        +String cropCode
+        +String name
+        +int version
+        +String anchorEvent
+        +String varietyAttributeSchema
+        +String sourceDocument
+        +Date validFrom
+    }
+    class Variety {
+        +String varietyId
+        +String cropCode
+        +String name
+        +String attributes
+        +String sourceNote
+    }
+    class Stage {
+        +String stageId
+        +int seq
+        +String name
+    }
+    class ActivityType {
+        +String activityTypeId
+        +String code
+        +String name
+        +String requirement
+        +int offsetDays
+        +int toleranceDays
+        +int producesLot
+        +int usesInputs
+        +String attributeSchema
+        +String publicLevel
+        +String ruleSource
+        +int isAssumption
+    }
+    class EvidenceRequirement {
+        +String requirementId
+        +String lotEventType
+        +String evidenceKind
+        +int minCount
+        +String ruleSource
+        +int isAssumption
+    }
+    class InputMaterial {
+        +String materialId
+        +String kind
+        +String tradeName
+        +String activeIngredient
+        +String registrationNo
+        +String defaultUnit
+    }
+    class MaterialCropRule {
+        +String cropCode
+        +int phiDays
+        +String ruleSource
+        +int isAssumption
+    }
+    class Farm {
+        +String farmId
+        +String name
+        +String province
+        +String commune
+        -String addressDetail
+        +DateTime createdAt
+    }
+    class Plot {
+        +String plotId
+        +String code
+        +Decimal areaM2
+        +String growingAreaCode
+        -String geoPoint
+        +DateTime createdAt
+    }
+    class Season {
+        +String seasonId
+        +String name
+        +String cropCode
+        +Date startsOn
+        +Date endsOn
+        +DateTime createdAt
+    }
+    class CultivationCycle {
+        +String cycleId
+        +Date startedAt
+        +Date closedAt
+        +DateTime createdAt
+        +currentAnchor() CycleAnchor
+        +expectedActivities() List
+        +completeness() CompletenessReport
+        +phiViolations() List
+    }
+    class CycleAnchor {
+        +String cycleAnchorId
+        +int revisionNo
+        +Date anchorDate
+        +DateTime recordedAt
+        +String reason
+    }
+    class Activity {
+        +String activityId
+        +DateTime createdAt
+        +String sourceChannel
+        +String externalRef
+        +currentRevision() ActivityRevision
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class ActivityRevision {
+        +String revisionId
+        +int revisionNo
+        +DateTime performedAt
+        +String timePrecision
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+    }
+    class ActivityInput {
+        +Decimal quantity
+        +String unit
+    }
+    class Device {
+        +String deviceId
+        +String sensorType
+        +String unit
+        +DateTime createdAt
+    }
+    class Observation {
+        +String observationId
+        +DateTime observedAt
+        +Decimal value
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+    }
+    class Lot {
+        +String lotId
+        +String publicCode
+        +String lotType
+        +DateTime createdAt
+        +String sourceChannel
+        +String externalRef
+        +currentRevision() LotRevision
+        +traceSources() List
+        +traceDestinations() List
+        +status() LotStatus
+        +timeline() List
+    }
+    class LotRevision {
+        +String lotRevisionId
+        +int revisionNo
+        +String productName
+        +Decimal quantity
+        +String unit
+        +String packagingSpec
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+        +verificationState() String
+    }
+    class LotEvent {
+        +String eventId
+        +String eventType
+        +DateTime occurredAt
+        +String timePrecision
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class LotInput {
+        +Decimal quantityUsed
+        +String unit
+        +DateTime recordedAt
+    }
+    class Certification {
+        +String certificationId
+        +String standard
+        +String certNumber
+        +Date validFrom
+        +Date validTo
+        +DateTime createdAt
+        +isValidOn(date) bool
+    }
+    class Evidence {
+        +String evidenceId
+        +String evidenceKind
+        +String uri
+        +String sha256
+        +DateTime capturedAt
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+    }
+    class EvidenceLink {
+        +String linkId
+        +DateTime linkedAt
+    }
+    class Verification {
+        +String verificationId
+        +String result
+        +String method
+        +String note
+        +String supersedeReason
+        +DateTime verifiedAt
+        +DateTime recordedAt
+        +isEffective() bool
+    }
+    Agent "0..*" --> "0..1" Agent : organization
+    Facility "0..*" --> "1" Agent : operator
+    Stage "0..*" --> "1" CropProfile : cropProfile
+    ActivityType "0..*" --> "1" Stage : stage
+    EvidenceRequirement "0..*" --> "0..1" ActivityType : activityType
+    MaterialCropRule "0..*" --> "1" InputMaterial : material
+    Farm "0..*" --> "1" Agent : ownerAgent
+    Farm "0..*" --> "1" Agent : createdBy
+    Plot "0..*" --> "1" Farm : farm
+    Plot "0..*" --> "1" Agent : createdBy
+    Season "0..*" --> "1" Agent : organization
+    Season "0..*" --> "1" Agent : createdBy
+    CultivationCycle "0..*" --> "1" Plot : plot
+    CultivationCycle "0..*" --> "1" CropProfile : cropProfile
+    CultivationCycle "0..*" --> "0..1" Variety : variety
+    CultivationCycle "0..*" --> "0..1" Season : season
+    CultivationCycle "0..*" --> "1" Agent : createdBy
+    CycleAnchor "0..*" --> "1" CultivationCycle : cycle
+    CycleAnchor "0..*" --> "1" Agent : recordedBy
+    Activity "0..*" --> "1" CultivationCycle : cycle
+    Activity "0..*" --> "1" ActivityType : activityType
+    Activity "0..*" --> "1" Agent : createdBy
+    ActivityRevision "0..*" --> "1" Activity : activity
+    ActivityRevision "0..*" --> "1" Agent : performedBy
+    ActivityRevision "0..*" --> "1" Agent : recordedBy
+    ActivityInput "0..*" --> "1" ActivityRevision : revision
+    ActivityInput "0..*" --> "1" InputMaterial : material
+    Device "0..1" --> "1" Agent : agent
+    Device "0..*" --> "0..1" Plot : plot
+    Device "0..*" --> "0..1" Facility : facility
+    Device "0..*" --> "1" Agent : createdBy
+    Observation "0..*" --> "1" Device : device
+    Observation "0..*" --> "0..1" Plot : plot
+    Observation "0..*" --> "0..1" Facility : facility
+    Lot "0..1" --> "0..1" Activity : harvestActivity
+    Lot "0..*" --> "1" Agent : createdBy
+    LotRevision "0..*" --> "1" Lot : lot
+    LotRevision "0..*" --> "1" Agent : recordedBy
+    LotEvent "0..1" --> "0..1" Lot : outputLot
+    LotEvent "0..*" --> "0..1" Lot : subjectLot
+    LotEvent "0..*" --> "0..1" Facility : facility
+    LotEvent "0..*" --> "1" Agent : performedBy
+    LotEvent "0..*" --> "1" Agent : recordedBy
+    LotInput "0..*" --> "1" LotEvent : event
+    LotInput "0..*" --> "1" Lot : inputLot
+    LotInput "0..*" --> "1" Agent : recordedBy
+    Certification "0..*" --> "1" Agent : issuedBy
+    Certification "0..*" --> "0..1" Farm : farm
+    Certification "0..*" --> "0..1" Plot : plot
+    Certification "0..*" --> "0..1" Facility : facility
+    Certification "0..*" --> "0..1" Lot : lot
+    Certification "0..*" --> "1" Agent : createdBy
+    Evidence "0..*" --> "0..1" Observation : observation
+    Evidence "0..*" --> "0..1" Agent : capturedBy
+    Evidence "0..*" --> "1" Agent : recordedBy
+    EvidenceLink "0..*" --> "1" Evidence : evidence
+    EvidenceLink "0..*" --> "0..1" ActivityRevision : activityRevision
+    EvidenceLink "0..*" --> "0..1" LotRevision : lotRevision
+    EvidenceLink "0..*" --> "0..1" LotEvent : lotEvent
+    EvidenceLink "0..*" --> "0..1" Plot : plot
+    EvidenceLink "0..*" --> "0..1" Certification : certification
+    EvidenceLink "0..*" --> "1" Agent : linkedBy
+    Verification "0..*" --> "0..1" ActivityRevision : activityRevision
+    Verification "0..*" --> "0..1" LotRevision : lotRevision
+    Verification "0..*" --> "0..1" LotEvent : lotEvent
+    Verification "0..*" --> "1" Agent : verifier
+    Verification "0..1" --> "0..1" Verification : supersedesVerification

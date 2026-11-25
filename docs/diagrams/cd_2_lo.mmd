@@ -1,0 +1,82 @@
+classDiagram
+    direction TB
+    class Activity {
+        +String activityId
+        +DateTime createdAt
+        +String sourceChannel
+        +String externalRef
+        +currentRevision() ActivityRevision
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class Lot {
+        +String lotId
+        +String publicCode
+        +String lotType
+        +DateTime createdAt
+        +String sourceChannel
+        +String externalRef
+        +currentRevision() LotRevision
+        +traceSources() List
+        +traceDestinations() List
+        +status() LotStatus
+        +timeline() List
+    }
+    class LotRevision {
+        +String lotRevisionId
+        +int revisionNo
+        +String productName
+        +Decimal quantity
+        +String unit
+        +String packagingSpec
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+        +verificationState() String
+    }
+    class LotEvent {
+        +String eventId
+        +String eventType
+        +DateTime occurredAt
+        +String timePrecision
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class LotInput {
+        +Decimal quantityUsed
+        +String unit
+        +DateTime recordedAt
+    }
+    class Facility {
+        +String facilityId
+        +String name
+        +String kind
+        +String province
+        +String commune
+        -String addressDetail
+    }
+    class Agent {
+        +String agentId
+        +String kind
+        +String name
+        +String role
+        +DateTime createdAt
+    }
+    Activity "0..*" --> "1" Agent : createdBy
+    Lot "0..1" --> "0..1" Activity : harvestActivity
+    Lot "0..*" --> "1" Agent : createdBy
+    LotRevision "0..*" --> "1" Lot : lot
+    LotRevision "0..*" --> "1" Agent : recordedBy
+    LotEvent "0..1" --> "0..1" Lot : outputLot
+    LotEvent "0..*" --> "0..1" Lot : subjectLot
+    LotEvent "0..*" --> "0..1" Facility : facility
+    LotEvent "0..*" --> "1" Agent : performedBy
+    LotEvent "0..*" --> "1" Agent : recordedBy
+    LotInput "0..*" --> "1" LotEvent : event
+    LotInput "0..*" --> "1" Lot : inputLot
+    LotInput "0..*" --> "1" Agent : recordedBy
+    Facility "0..*" --> "1" Agent : operator
+    Agent "0..*" --> "0..1" Agent : organization

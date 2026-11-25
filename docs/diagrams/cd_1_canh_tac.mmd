@@ -1,0 +1,156 @@
+classDiagram
+    direction TB
+    class CropProfile {
+        +String cropProfileId
+        +String cropCode
+        +String name
+        +int version
+        +String anchorEvent
+        +String varietyAttributeSchema
+        +String sourceDocument
+        +Date validFrom
+    }
+    class Stage {
+        +String stageId
+        +int seq
+        +String name
+    }
+    class ActivityType {
+        +String activityTypeId
+        +String code
+        +String name
+        +String requirement
+        +int offsetDays
+        +int toleranceDays
+        +int producesLot
+        +int usesInputs
+        +String attributeSchema
+        +String publicLevel
+        +String ruleSource
+        +int isAssumption
+    }
+    class EvidenceRequirement {
+        +String requirementId
+        +String lotEventType
+        +String evidenceKind
+        +int minCount
+        +String ruleSource
+        +int isAssumption
+    }
+    class Variety {
+        +String varietyId
+        +String cropCode
+        +String name
+        +String attributes
+        +String sourceNote
+    }
+    class InputMaterial {
+        +String materialId
+        +String kind
+        +String tradeName
+        +String activeIngredient
+        +String registrationNo
+        +String defaultUnit
+    }
+    class MaterialCropRule {
+        +String cropCode
+        +int phiDays
+        +String ruleSource
+        +int isAssumption
+    }
+    class Farm {
+        +String farmId
+        +String name
+        +String province
+        +String commune
+        -String addressDetail
+        +DateTime createdAt
+    }
+    class Plot {
+        +String plotId
+        +String code
+        +Decimal areaM2
+        +String growingAreaCode
+        -String geoPoint
+        +DateTime createdAt
+    }
+    class Season {
+        +String seasonId
+        +String name
+        +String cropCode
+        +Date startsOn
+        +Date endsOn
+        +DateTime createdAt
+    }
+    class CultivationCycle {
+        +String cycleId
+        +Date startedAt
+        +Date closedAt
+        +DateTime createdAt
+        +currentAnchor() CycleAnchor
+        +expectedActivities() List
+        +completeness() CompletenessReport
+        +phiViolations() List
+    }
+    class CycleAnchor {
+        +String cycleAnchorId
+        +int revisionNo
+        +Date anchorDate
+        +DateTime recordedAt
+        +String reason
+    }
+    class Activity {
+        +String activityId
+        +DateTime createdAt
+        +String sourceChannel
+        +String externalRef
+        +currentRevision() ActivityRevision
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class ActivityRevision {
+        +String revisionId
+        +int revisionNo
+        +DateTime performedAt
+        +String timePrecision
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+    }
+    class ActivityInput {
+        +Decimal quantity
+        +String unit
+    }
+    class Agent {
+        +String agentId
+        +String kind
+        +String name
+        +String role
+        +DateTime createdAt
+    }
+    Stage "0..*" --> "1" CropProfile : cropProfile
+    ActivityType "0..*" --> "1" Stage : stage
+    EvidenceRequirement "0..*" --> "0..1" ActivityType : activityType
+    MaterialCropRule "0..*" --> "1" InputMaterial : material
+    Farm "0..*" --> "1" Agent : ownerAgent
+    Farm "0..*" --> "1" Agent : createdBy
+    Plot "0..*" --> "1" Farm : farm
+    Plot "0..*" --> "1" Agent : createdBy
+    Season "0..*" --> "1" Agent : organization
+    Season "0..*" --> "1" Agent : createdBy
+    CultivationCycle "0..*" --> "1" Plot : plot
+    CultivationCycle "0..*" --> "1" CropProfile : cropProfile
+    CultivationCycle "0..*" --> "0..1" Variety : variety
+    CultivationCycle "0..*" --> "0..1" Season : season
+    CultivationCycle "0..*" --> "1" Agent : createdBy
+    CycleAnchor "0..*" --> "1" CultivationCycle : cycle
+    CycleAnchor "0..*" --> "1" Agent : recordedBy
+    Activity "0..*" --> "1" CultivationCycle : cycle
+    Activity "0..*" --> "1" ActivityType : activityType
+    Activity "0..*" --> "1" Agent : createdBy
+    ActivityRevision "0..*" --> "1" Activity : activity
+    ActivityRevision "0..*" --> "1" Agent : performedBy
+    ActivityRevision "0..*" --> "1" Agent : recordedBy
+    ActivityInput "0..*" --> "1" ActivityRevision : revision
+    ActivityInput "0..*" --> "1" InputMaterial : material
+    Agent "0..*" --> "0..1" Agent : organization

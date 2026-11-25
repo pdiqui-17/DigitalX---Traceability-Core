@@ -1,0 +1,104 @@
+classDiagram
+    direction TB
+    class Evidence {
+        +String evidenceId
+        +String evidenceKind
+        +String uri
+        +String sha256
+        +DateTime capturedAt
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+    }
+    class EvidenceLink {
+        +String linkId
+        +DateTime linkedAt
+    }
+    class Verification {
+        +String verificationId
+        +String result
+        +String method
+        +String note
+        +String supersedeReason
+        +DateTime verifiedAt
+        +DateTime recordedAt
+        +isEffective() bool
+    }
+    class ActivityRevision {
+        +String revisionId
+        +int revisionNo
+        +DateTime performedAt
+        +String timePrecision
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+    }
+    class LotRevision {
+        +String lotRevisionId
+        +int revisionNo
+        +String productName
+        +Decimal quantity
+        +String unit
+        +String packagingSpec
+        +String attributes
+        +DateTime recordedAt
+        +String reason
+        +verificationState() String
+    }
+    class LotEvent {
+        +String eventId
+        +String eventType
+        +DateTime occurredAt
+        +String timePrecision
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+        +evidenceCompleteness() String
+        +verificationState() String
+    }
+    class Plot {
+        +String plotId
+        +String code
+        +Decimal areaM2
+        +String growingAreaCode
+        -String geoPoint
+        +DateTime createdAt
+    }
+    class Certification {
+        +String certificationId
+        +String standard
+        +String certNumber
+        +Date validFrom
+        +Date validTo
+        +DateTime createdAt
+        +isValidOn(date) bool
+    }
+    class Device {
+        +String deviceId
+        +String sensorType
+        +String unit
+        +DateTime createdAt
+    }
+    class Observation {
+        +String observationId
+        +DateTime observedAt
+        +Decimal value
+        +DateTime recordedAt
+        +String sourceChannel
+        +String externalRef
+    }
+    Evidence "0..*" --> "0..1" Observation : observation
+    EvidenceLink "0..*" --> "1" Evidence : evidence
+    EvidenceLink "0..*" --> "0..1" ActivityRevision : activityRevision
+    EvidenceLink "0..*" --> "0..1" LotRevision : lotRevision
+    EvidenceLink "0..*" --> "0..1" LotEvent : lotEvent
+    EvidenceLink "0..*" --> "0..1" Plot : plot
+    EvidenceLink "0..*" --> "0..1" Certification : certification
+    Verification "0..*" --> "0..1" ActivityRevision : activityRevision
+    Verification "0..*" --> "0..1" LotRevision : lotRevision
+    Verification "0..*" --> "0..1" LotEvent : lotEvent
+    Verification "0..1" --> "0..1" Verification : supersedesVerification
+    Certification "0..*" --> "0..1" Plot : plot
+    Device "0..*" --> "0..1" Plot : plot
+    Observation "0..*" --> "1" Device : device
+    Observation "0..*" --> "0..1" Plot : plot
