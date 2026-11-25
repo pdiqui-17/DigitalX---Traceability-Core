@@ -1,8 +1,9 @@
 # Plan ĐACN — Lõi truy xuất có minh chứng cho chuỗi mè → dầu mè
 
 > Đề tài #6 — Agricultural Digital Thread & Evidence-aware Traceability
-> Cập nhật: 25/11/2026 · Nhóm 3 người (A, B, C — điền tên)
-> Mốc gần nhất: **29/11/2026 gửi thầy Fishbone & Evidence Board** · Bảo vệ ĐACN: cuối năm (chờ lịch)
+> Cập nhật: 26/11/2026 · Nhóm 3 người (A, B, C — điền tên)
+> Mốc gần nhất: **29/11/2026 gửi thầy Fishbone & Evidence Board** (còn 3 ngày) · Bảo vệ ĐACN: cuối năm (chờ lịch)
+> Repo code: https://github.com/pdiqui-17/DigitalX---Traceability-Core
 
 ---
 
@@ -40,7 +41,7 @@
 |---|---|---|---|
 | E1 · P1 | Khảo sát người tiêu dùng n=50 + số liệu hệ thống quốc gia | Có bản phân tích, mức **P** | Chat 22/11; file CSV khảo sát |
 | E2 · S1 | Khảo sát giải pháp, 8 giải pháp, 7 tiêu chí | Bản 4, mức **P**, **chưa kiểm thử trực tiếp** | Project: `claude/S1_khao_sat_giai_phap.md` |
-| D1/D2 | Thiết kế lõi, crop profile, luồng lô | **Mới ở mức khái niệm** — chưa có ERD, thuộc tính, khóa, DDL, API | Whiteboard: https://claude.ai/artifact/AKcGZ5Pnius4VpDeTPL9yL |
+| D1/D2 | Thiết kế lõi, crop profile, luồng lô | **Schema v0.5, 87/87 kiểm tra, 4 vòng đánh giá** — còn thiếu sơ đồ tuần tự, phác API, mô hình phân quyền | `docs/D1_D2_schema_design.md`; repo GitHub |
 | E3 · C1 | Chuỗi mock + kiểm tra truy ngược | **Chưa có (M)** | — |
 | E4 · C2 | Trang QR | **Chưa có (M)** | — |
 | Outline báo cáo | | **Chưa có** | — |
@@ -50,7 +51,51 @@
 
 > Thứ tự đúng: **thiết kế dữ liệu (Việc 0) → dữ liệu mock theo schema (Việc 1) → prototype kiểm tra (Việc 2)**. Đây là lõi của đề tài #6 ("canonical schema, provenance model, traceability API"), nên phải có trước khi sinh dữ liệu.
 
-### Việc 0 — Canonical data model & DB design (D1/D2) · 25–26/11 · Claude dựng bản nháp, B + C phản biện
+### Phân công theo người và theo ngày (cập nhật 26/11)
+
+Nguyên tắc: người không trực tiếp thiết kế là người đặt câu hỏi phản biện, không tự viết test kỹ thuật — đúng cách vòng đánh giá 4 tìm ra 30 lỗi mà bộ test tự viết của người thiết kế không bắt được (xem `docs/CHANGELOG.md` v0.5). Vai trò dưới đây không nhất thiết trùng A/B/C ở trên — nhóm tự đối chiếu tên thật.
+
+**Người 1 — trưởng nhóm (điều hành thảo luận & quyết định, không code)**
+
+| Ngày | Việc |
+|---|---|
+| 26/11 | Họp với Người 2, dùng bộ 5 câu hỏi (phụ lục cuối mục này). Ghi lại câu trả lời mơ hồ để bàn lại. Điền tên thật + người phụ trách + thời hạn cụ thể vào mục 4 (hiện ghi chung "Buổi góp ý"). |
+| 27/11 | Họp lại sau khi Việc 2 (K6 chạy thật) và luồng QR (Việc 0 bổ sung) có kết quả — hỏi lại đúng 5 câu, đòi bằng chứng cụ thể thay vì lời hứa. Quyết định: giới hạn `lot_type`/`event_type` cố định ghi vào "giới hạn đã biết" hay sửa luôn nếu còn kịp. |
+| 28/11 | Chủ trì Việc 7 (chốt lập luận) dùng đúng "Câu hỏi hội đồng cần chuẩn bị sẵn" ở mục 5. Rà Evidence Board (Việc 6, do Người 3 tổng hợp) — gạch bỏ dòng nói quá so với minh chứng thật. Duyệt slide (Việc 8). |
+| 29/11 | Việc 9: kiểm quyền truy cập GVHD, tên file đúng chuẩn, gửi thầy. |
+
+**Người 2 — kỹ thuật (schema, test, QR)**
+
+| Ngày | Việc |
+|---|---|
+| 26/11 | Chạy lại K6 (Việc 2) với một chu kỳ lạc đầy đủ từ đầu đến cuối — sửa `check("F15", ..., True, ...)` trong `db/smoke_test.py` (hiện là hằng đúng, không kiểm gì thật) thành so sánh kết quả thật. Chuẩn bị giải thích kết quả bằng lời cho Người 1. |
+| 27/11 | Vẽ sơ đồ luồng quét QR + bảng API tối thiểu (đầu ra còn thiếu của Việc 0). Viết rõ giới hạn `lot_type`/`event_type` cố định vào `docs/D1_D2_schema_design.md`. Bắt đầu Việc 1 (bộ mock mè 11 bước + lạc) và Việc 3 (trang QR demo) nếu kịp. |
+| 28/11 | Chạy nốt K1–K6 cho mè, ra số liệu "x/7 kịch bản đạt" cho Evidence Board. Trả lời phản biện nội bộ của Người 1. |
+
+**Người 3 — khảo sát thực địa & nội dung (Việc 4, 5, 6)**
+
+| Ngày | Việc |
+|---|---|
+| 26/11 | Việc 4: quét QR thật 8–10 sản phẩm, chấm T1–T7, chụp màn hình. Việc 5: bấm thử 14 link nguồn S1, lưu PDF vào `S1/nguon/`. |
+| 27/11 | Cập nhật S1 lên bản 5 với kết quả kiểm thử tay thật. Viết outline báo cáo (Việc 6) theo khung P→S→O→D→C, gắn mã minh chứng từng mục. |
+| 28/11 | Tổng hợp Evidence Board 5 cột (ID/Claim · Cách thu thập & phạm vi · Kết quả quan sát · Chất lượng/giới hạn · Nguồn·Owner·Status). Phối hợp Người 1 ghép slide (Việc 8). |
+
+**Phụ lục — 5 câu hỏi phản biện cho Người 1**
+
+1. **Đổi cây trồng** — "Nếu mai mốt đổi từ mè sang một nông sản khác hẳn — không ép dầu mà bán thô, hoặc thêm bước sấy/phân loại — mình cần sửa code hay chỉ cần nhập thêm dữ liệu?"
+   ✅ Yên tâm nếu: phân biệt rõ "hoạt động canh tác" (linh hoạt) với "loại lô hàng/sự kiện lô" (đang cố định — 4 `lot_type`, 5 `event_type`, viết cứng trong schema). 🚩 Hỏi tiếp nếu: trả lời "tất cả đều linh hoạt" mà không nhắc giới hạn này.
+2. **Test lạc có thật không** — "Test chứng minh 'thêm cây lạc không cần sửa gì' có chạy thử một vụ lạc từ đầu đến cuối không, hay chỉ thêm vài dòng cấu hình?"
+   ✅ Yên tâm nếu: có kết quả chạy thật, có lô hàng lạc cụ thể, có truy xuất ra kết quả. 🚩 Hỏi tiếp nếu: "mới thêm cấu hình, chưa chạy thử đầu-cuối."
+3. **Luồng quét QR** — "Khi quét mã QR trên chai dầu, hệ thống làm các bước gì theo thứ tự? Quét sai mã hoặc mất mạng thì sao?"
+   ✅ Yên tâm nếu: kể rõ từng bước, kể cả trường hợp lỗi. 🚩 Hỏi tiếp nếu: chỉ nói chung chung "thì nó hiện thông tin ra."
+4. **Ai được ghi dữ liệu** — "Ai được ghi dữ liệu — nông dân, kỹ thuật viên? Ai xác minh? Hệ thống có kiểm tra đúng người không?"
+   ✅ Yên tâm nếu: phân biệt rõ vai trò người làm/người ghi/người xác minh trong dữ liệu. 🚩 Hỏi tiếp nếu: "ai đăng nhập cũng ghi/xác minh được hết, chưa phân quyền" → ghi vào mục giới hạn báo cáo.
+5. **Sửa dữ liệu, minh chứng cũ ra sao** — "Nếu nông dân sửa một hoạt động đã ghi, ảnh minh chứng cũ có tự áp dụng cho bản sửa không?"
+   ✅ Yên tâm nếu: trả lời mạch lạc — ảnh cũ không tự chuyển, phải gắn lại thủ công, có lý do rõ (chủ đích, không phải lỗi). 🚩 Hỏi tiếp nếu: ấp úng hoặc trả lời khác lần trước.
+
+---
+
+### Việc 0 — Canonical data model & DB design (D1/D2) · ✅ ĐÃ XONG (26/11) · Claude dựng bản nháp, B + C phản biện
 - **Đầu vào:** Whiteboard D1/D2 (mức khái niệm), quy trình mè, yêu cầu từ khảo sát người dùng và slide công ty, dữ liệu tối thiểu của hệ thống quốc gia.
 - **Làm:**
   - **ERD logic:** đầy đủ entity, thuộc tính, khóa chính/khóa ngoại, bản số quan hệ (1–n, n–n). Gồm 4 cụm:
@@ -91,9 +136,11 @@
   | K3 | Hộ có hoạt động thiếu minh chứng | Chỉ số đầy đủ giảm đúng, mục thiếu được liệt kê |
   | K4 | Hoạt động bị từ chối | Tính là chưa đạt, không bị xếp vào "tự khai" |
   | K5 | Bản ghi bị sửa | Còn bản cũ + lý do, bản mới được dùng |
-  | K6 | Thêm crop profile lạc | Không đổi cấu trúc bảng |
+  | K6 | Thêm crop profile lạc | Không đổi cấu trúc bảng; **phải chạy đầy đủ một chu kỳ lạc (gieo → thu hoạch → lô → truy xuất)**, không chỉ chèn cấu hình |
 
-- **Đầu ra:** script + kết quả chạy (log/bảng) → dòng **E3 · C1** với mẫu số, ví dụ "6/6 kịch bản đạt trên bộ mock 3 hộ".
+> ⚠️ 26/11: bản cũ của K6 (`F15` trong `db/smoke_test.py`) là `check(..., True, ...)` — hằng đúng, không kiểm gì thật. Người 2 sửa lại thành so sánh kết quả thật trước khi tính K6 là đạt.
+
+- **Đầu ra:** script + kết quả chạy (log/bảng) → dòng **E3 · C1** với mẫu số, ví dụ "7/7 kịch bản đạt trên bộ mock 3 hộ + 1 chu kỳ lạc".
 - **Giới hạn cần ghi:** dữ liệu mock, 1 vụ, 3 hộ; chưa thử với dữ liệu thật.
 
 ### Việc 3 — Trang QR (E4 → C2) · 25–27/11 · Claude dựng bản demo, C duyệt
@@ -188,3 +235,4 @@ Khung đề xuất (đi theo mạch P → S → O → D → C):
 - Hướng dẫn bảo vệ ĐACN v4 và mẫu Fishbone & Evidence Board v4: Google Drive của thầy
 - Khảo sát người tiêu dùng: file CSV "Khảo sát nhu cầu sử dụng thông tin truy xuất nguồn gốc sản phẩm nông nghiệp" (n=50, 20–25/10/2026)
 - Website sản phẩm F&S: https://www.foodnseed.vn/vi/dau-me
+- Repo code (schema, trigger, view, test): https://github.com/pdiqui-17/DigitalX---Traceability-Core
