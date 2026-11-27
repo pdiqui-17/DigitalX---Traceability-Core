@@ -1,0 +1,353 @@
+PROJECT SCOPE DECISION — Sổ quyết định phạm vi và thiết kế
+Đề tài #6 · Lõi truy xuất nguồn gốc có minh chứng
+Cập nhật: 28/11/2026 · Người chốt: Duy Quý (trưởng nhóm), sau khi bàn với Mạnh Dũng (kỹ thuật)
+========================================================================
+
+ĐỌC FILE NÀY THẾ NÀO
+  - Đây là nơi DUY NHẤT ghi những gì nhóm đã quyết định. Nếu plan.md, slide hay
+    báo cáo nói khác file này, file này đúng; sửa nơi kia cho khớp.
+  - File này KHÔNG ghi ai làm gì, hạn khi nào. Phân công nằm ở docs/plan.md mục 3;
+    câu hỏi gửi thầy nằm ở docs/plan.md mục 4.
+  - Đọc phần TÓM TẮT trước. Phần chi tiết giải thích VÌ SAO chọn như vậy — đọc khi
+    cần trả lời hội đồng hoặc khi định làm khác đi.
+  - Muốn đổi một quyết định: bàn với trưởng nhóm, sửa đúng mục SD-xx, ghi ngày.
+
+Trạng thái
+  ĐÃ CHỐT   — nhóm thống nhất, làm theo
+  CHỜ THẦY  — nhóm đã có hướng, cần GVHD xác nhận; trong lúc chờ, làm theo hướng ghi ở mục đó
+
+
+========================================================================
+TÓM TẮT — 18 QUYẾT ĐỊNH
+========================================================================
+  SD-01  Mục đích: lõi truy xuất có minh chứng, cấu hình theo loại nông sản;
+         mè → dầu mè là trường hợp chính                              ĐÃ CHỐT
+  SD-02  O1: khả năng xác định mức độ minh chứng của từng hoạt động so với
+         quy trình của loại cây; 4 tiêu chí; bỏ "11 bước" và "dữ liệu quốc gia" ĐÃ CHỐT
+  SD-03  O2: khả năng truy ngược từ lô thành phẩm về nguồn và minh chứng ĐÃ CHỐT
+  SD-04  Phạm vi IN                                                    ĐÃ CHỐT
+  SD-05  Phạm vi OUT                                                   ĐÃ CHỐT
+  SD-06  Dạng của lõi: định hướng dịch vụ trung tâm, triển khai ở ĐATN ĐÃ CHỐT
+  SD-07  Định nghĩa độ đầy đủ minh chứng: 4 cấp, theo đúng logic đã có  ĐÃ CHỐT
+  SD-08  Chưa tách dữ liệu theo tổ chức → giới hạn, nhắc lại khi mở rộng ĐÃ CHỐT
+  SD-09  Phân quyền tài khoản → ngoài phạm vi                          ĐÃ CHỐT
+  SD-10  Minh chứng gắn nhầm: rút lại bằng bản ghi mới; thiết kế ngay,
+         cài đặt sau 29/11                                             ĐÃ CHỐT
+  SD-11  Loại lô / loại sự kiện lô giữ cố định                         ĐÃ CHỐT
+  SD-12  Trang QR hiện "bị từ chối": nhãn + hoạt động + ngày, không ghi chú ĐÃ CHỐT
+  SD-13  Lõi giữ 2 trục; lõi có view ánh xạ ra 4 nhãn hiển thị         ĐÃ CHỐT
+  SD-14  QR là điều kiện nghiệm thu hay best practice                  CHỜ THẦY
+  SD-15  E3/E4 = 6 kịch bản K1–K6 + test truy xuất, SQLite + PostgreSQL ĐÃ CHỐT
+  SD-16  E2 giữ mức P nếu chưa kiểm thử trực tiếp                      ĐÃ CHỐT
+  SD-17  Hai đóng góp: C1 đánh giá minh chứng · C2 truy xuất lô         ĐÃ CHỐT
+  SD-18  Evidence Board: tách E3 (cho C1) và E4 (cho C2), không còn dòng M ĐÃ CHỐT
+
+
+========================================================================
+A. LẬP LUẬN ĐỀ TÀI
+========================================================================
+
+[SD-01] Mục đích đề tài                                         ĐÃ CHỐT
+  Quyết định
+    Lõi truy xuất nguồn gốc có minh chứng, cấu hình được theo loại nông sản,
+    cho phép hệ thống khác truy ngược từ lô thành phẩm về hoạt động canh tác và
+    mức độ minh chứng của hoạt động đó. Chuỗi mè đen → dầu mè là trường hợp
+    chính để kiểm chứng.
+  Vì sao
+    - Thứ nhóm cần làm ra là một lõi (SDK) cho nơi khác gọi vào, không phải ứng
+      dụng riêng cho mè.
+    - Vẫn khớp với điều đã thống nhất với thầy "ĐACN giới hạn ở mè": mè là
+      trường hợp kiểm chứng chính (SD-04).
+    - Không viết chữ "SDK" vào mục đích: hướng dẫn yêu cầu mục đích là năng lực,
+      không phải tên công nghệ.
+  Ảnh hưởng tới: plan.md mục 1 · ô trung tâm slide Fishbone · chương 1 báo cáo
+
+[SD-02] Mục tiêu O1                                             ĐÃ CHỐT
+  Quyết định
+    O1: Khả năng xác định mức độ minh chứng của từng hoạt động canh tác so với
+        quy trình của loại cây.
+    Tiêu chí kiểm chứng                                         Test chứng minh
+      1. Mỗi hoạt động được tự tính 2 trạng thái độc lập        F1 F2 R4 N17
+         (đủ/thiếu minh chứng · chưa/đã xác minh/bị từ chối),
+         không có cách gán tay
+      2. Phát hiện hoạt động bắt buộc không được ghi            F3 F4 V9 V10 N9
+         hoặc lệch lịch so với quy trình
+      3. Sửa hoạt động: giữ bản cũ, bắt buộc lý do,             C1 C6 F2
+         minh chứng cũ không tự áp dụng sang bản mới
+      4. Áp dụng cho cây mới chỉ bằng dữ liệu cấu hình,         K6 (test mới,
+         chạy đủ một chu kỳ                                     thay F15)
+    Bỏ khỏi tiêu chí O1:
+      - "Biểu diễn đủ 11 bước quy trình mè" → chuyển thành tiêu chí đạt của bộ
+        dữ liệu mock (Việc 1), không phải tiêu chí của O1.
+      - "Xuất được dữ liệu tối thiểu quốc gia" → OUT, để ĐATN (SD-05). Bảng ánh xạ
+        sang hệ thống quốc gia vẫn giữ trong tài liệu thiết kế như ý thiết kế.
+  Vì sao
+    - Bản cũ "Mô hình dữ liệu canh tác có minh chứng ..." là thiết kế (trùng D1),
+      gộp 2 việc và không rõ thế nào là đạt.
+    - Bản mới là một năng lực đo được. "Theo loại cây" trở thành thước đo để so
+      sánh, nên khả năng mở rộng sang cây khác nằm gọn trong tiêu chí 4.
+    - "11 bước" là yêu cầu về dữ liệu chứ không phải năng lực; "dữ liệu quốc gia"
+      chưa có bằng chứng nào — giữ lại là tự nhận việc chưa làm.
+  Ảnh hưởng tới: plan.md mục 1 · nhánh Mục tiêu slide Fishbone ·
+                 D1_D2_schema_design.md mục 7 (bảng tiêu chí ↔ test)
+
+[SD-03] Mục tiêu O2                                             ĐÃ CHỐT
+  Quyết định
+    O2: Khả năng truy ngược từ lô thành phẩm, qua gộp lô và chế biến, về nguồn
+        và minh chứng.
+    Tiêu chí: trên bộ mock (3 hộ → 1 lô ép → 2 lô chai), mọi chai truy đúng tập
+    hộ nguồn kèm tỷ lệ; phần không truy được phải hiện ra; tỷ lệ đến từ chu kỳ
+    đủ minh chứng tính đúng.
+  Vì sao
+    - O1 trả lời ở mức hoạt động/chu kỳ ("việc này có đủ bằng chứng không?"),
+      O2 trả lời ở mức chai dầu ("chai này từ đâu, bao nhiêu % đủ minh chứng?").
+    - O2 dùng kết quả của O1 (complete_share tính từ trạng thái chu kỳ), nên hai
+      mục tiêu không trùng và cùng nhau đủ cho mục đích.
+  Ảnh hưởng tới: plan.md mục 1 · slide Fishbone
+
+
+========================================================================
+B. PHẠM VI
+========================================================================
+IN = những gì ĐACN cam kết làm; kết luận của nhóm chỉ đúng trong vùng này.
+OUT = những gì cố ý không làm trong ĐACN, có lý do; nhiều mục chuyển sang ĐATN.
+
+[SD-04] Phạm vi IN                                              ĐÃ CHỐT
+    - Chuỗi mè đen → dầu mè rang chai 80ml / 250ml
+    - Dữ liệu mock: 3 hộ ở Tây Ninh, 1 vụ
+    - Ghi hoạt động + minh chứng + xác minh; sửa bằng bản mới có lý do
+    - Truy ngược / truy xuôi qua gộp, ép, đóng chai
+    - Thêm cây mới bằng dữ liệu cấu hình: lạc (và lúa) là mock để chứng minh
+      khả năng mở rộng, có chạy đủ một chu kỳ
+    - Thu mua, vận chuyển: chỉ ghi mốc ngày, không mô hình hóa chuyển quyền sở hữu
+    - Thiết kế danh sách API truy xuất (prototype API chỉ làm nếu dư thời gian)
+    - Trang QR: phụ thuộc SD-14
+  Ảnh hưởng tới: plan.md mục 1 · nhánh Phạm vi slide Fishbone
+
+[SD-05] Phạm vi OUT                                             ĐÃ CHỐT
+    Nội dung                                 Lý do
+    - Can 25kg bán sỉ                         đã thống nhất với thầy
+    - Tách dữ liệu theo tổ chức (SD-08)       chỉ cần khi nhiều tổ chức cùng gọi vào → ĐATN
+    - Phân quyền tài khoản (SD-09)            như trên → ĐATN
+    - Hiện thực API / SDK hoàn chỉnh (SD-06)  ĐACN dừng ở lõi dữ liệu + truy vấn → ĐATN
+    - Xuất dữ liệu tối thiểu quốc gia (SD-02) chưa có bằng chứng → ĐATN
+    - Cây lâu năm, thu hoạch nhiều lần        chu kỳ khác hẳn → ĐATN
+    - Loại lô / loại sự kiện lô mới (SD-11)   phải sửa schema → ĐATN nếu cần
+    - Dữ liệu thật, IoT thật, AI story        → ĐATN
+    - Dashboard Visibility / Predictability   đã thống nhất: ĐATN
+  Ảnh hưởng tới: plan.md mục 1 và mục 5 · slide Fishbone · chương 6 báo cáo
+
+
+========================================================================
+C. THIẾT KẾ
+========================================================================
+
+[SD-06] Dạng của lõi                                            ĐÃ CHỐT
+  Quyết định
+    Định hướng: DỊCH VỤ TRUNG TÂM, các hệ thống khác gọi vào qua API/SDK.
+    Triển khai ở ĐATN. ĐACN chỉ ghi định hướng và lý do trong thiết kế.
+  Vì sao
+    - Truy xuất đi xuyên nhiều tổ chức (hộ → thu mua → nhà máy → thương hiệu).
+      Nếu mỗi nơi giữ database riêng (thư viện nhúng) thì chuỗi lô đứt ở ranh
+      giới tổ chức, câu "chai này từ 3 hộ nào" không trả lời được.
+    - Luật nghiệp vụ đang nằm trong trigger của database → hợp với một nơi lưu
+      trung tâm sở hữu luật.
+    - Không cần chờ thầy: hiện thực API/SDK đã OUT (SD-05) nên lựa chọn này không
+      ảnh hưởng nghiệm thu ĐACN.
+  Đánh đổi: phải vận hành dịch vụ, có xác thực, phụ thuộc mạng.
+  Ảnh hưởng tới: D1_D2_schema_design.md · danh sách API · chương 4 báo cáo
+
+[SD-07] Định nghĩa độ đầy đủ minh chứng                         ĐÃ CHỐT
+  Quyết định
+    Chốt đúng logic đã có trong code làm thước đo của O1. Hệ thống tự tính, không
+    có cột nào cho người dùng tự điền.
+    Cấp 1 — Hoạt động (v_activity_status)
+      ĐỦ khi: với MỌI yêu cầu minh chứng của loại hoạt động, số file khác nhau
+      (cùng sha256 chỉ tính 1), đúng loại, gắn vào BẢN GHI HIỆN HÀNH ≥ min_count;
+      nếu loại hoạt động có dùng vật tư thì phải ghi vật tư.
+      Giá trị: complete | missing_evidence | missing_inputs
+    Cấp 2 — Sự kiện lô (v_lot_event_status)
+      Cùng luật cho gộp / ép / đóng gói. Không có yêu cầu → not_required.
+    Cấp 3 — Chu kỳ canh tác (v_cycle_completeness)
+      completeness_ratio = (số hoạt động BẮT BUỘC đã đến hạn, đủ minh chứng,
+                            không bị từ chối)
+                         / (số hoạt động BẮT BUỘC đã đến hạn)
+      cycle_state = complete khi: không thiếu hoạt động nào, tất cả đủ minh
+      chứng, không có gì bị từ chối, hoạt động không bắt buộc đã ghi cũng đủ.
+      Chưa có ngày gieo → undetermined (không bị tính là thiếu).
+    Cấp 4 — Lô thành phẩm (v_lot_status)
+      complete_share = % khối lượng lô đến từ các chu kỳ complete.
+    Xác minh là trục riêng (verification_state, all_verified, verified_share);
+    đúng/lệch lịch cũng tách riêng (on_schedule_ratio).
+  Giới hạn phải ghi trong báo cáo
+    - Chỉ đo ĐỦ SỐ LƯỢNG ĐÚNG LOẠI, không đo minh chứng có đúng sự thật
+      (captured_at chưa được so với ngày làm hoạt động).
+    - Mọi ngưỡng evidence_requirement hiện là giả định nhóm (is_assumption = 1).
+    - Hoạt động có điều kiện mà nông dân không ghi thì không phát hiện được.
+    - "Đủ minh chứng" khác "đáng tin"; chỉ số độ tin cậy → ĐATN.
+  Vì sao
+    Định nghĩa đã tồn tại và đã có test; việc còn thiếu chỉ là viết nó ra. Ghi
+    giới hạn ngay cạnh định nghĩa để không bị hiểu là "đủ minh chứng = thật".
+  Ảnh hưởng tới: D1_D2_schema_design.md (thêm mục riêng) · tiêu chí O1 · chương 4 báo cáo
+
+[SD-08] Tách dữ liệu theo tổ chức                               ĐÃ CHỐT
+  Quyết định
+    Chưa làm trong ĐACN; ghi là giới hạn đã biết. Nhắc lại bắt buộc khi rà thiết
+    kế trước bất kỳ triển khai đa tổ chức nào.
+  Cách làm sau này: thêm organization_id vào crop_profile là đủ cho phần cấu
+    hình, vì stage / activity_type / evidence_requirement kế thừa qua khóa ngoại.
+  Hệ quả: báo cáo KHÔNG được viết "dùng chung an toàn cho nhiều doanh nghiệp";
+    chỉ viết "dùng chung cho nhiều loại cây trong một chuỗi".
+  Ảnh hưởng tới: D1_D2_schema_design.md mục giới hạn · câu chữ báo cáo
+
+[SD-09] Phân quyền ghi / xác minh                               ĐÃ CHỐT
+  Quyết định
+    Tài khoản và kiểm soát ai được gọi thao tác nào: ngoài phạm vi (ĐATN).
+    Giữ như thiết kế hiện có: dữ liệu ghi rõ người làm / người ghi / người xác
+    minh; trigger chặn tự xác minh bản ghi của chính mình (test C4).
+  Ảnh hưởng tới: D1_D2_schema_design.md mục giới hạn · SD-05
+
+[SD-10] Minh chứng bị gắn nhầm                                  ĐÃ CHỐT
+  Vấn đề
+    evidence_link chỉ ghi thêm (không sửa, không xóa) và verification chỉ xác
+    minh cả bản ghi, nên hiện không có cách sửa một ảnh gắn nhầm.
+  Quyết định
+    Rút lại bằng một bản ghi mới, không bao giờ sửa/xóa liên kết gốc:
+    - Bảng mới evidence_link_retraction: liên kết bị rút (mỗi liên kết rút tối
+      đa một lần), người rút, thời điểm, lý do (bắt buộc), liên kết thay thế
+      (nếu có). Bảng này cũng chỉ ghi thêm.
+    - v_activity_status và v_lot_event_status chỉ đếm liên kết CHƯA bị rút →
+      độ đầy đủ tự tính lại, không cần sửa gì khác.
+    - v_integrity_issues thêm cảnh báo: bản ghi đã được xác minh nhưng sau đó
+      minh chứng bị rút.
+    Thời điểm: viết vào tài liệu thiết kế trước 29/11; CÀI ĐẶT SAU 29/11, trước
+    ngày bảo vệ. Trigger/view sinh tự động bởi gen_triggers.py, gen_views.py →
+    sửa trong file sinh, không sửa tay file SQL.
+  Vì sao
+    Giữ đúng tinh thần chỉ ghi thêm của toàn bộ schema: sửa sai cũng để lại dấu
+    vết ai sửa, khi nào, vì sao.
+  Ảnh hưởng tới: D1_D2_schema_design.md · schema/trigger/view (sau 29/11)
+
+[SD-11] Loại lô / loại sự kiện lô cố định                       ĐÃ CHỐT
+  Quyết định
+    Giữ lot_type (harvest, aggregated, processed, packaged) và event_type
+    (aggregation, transformation, packaging, purchase, transport) cố định bằng
+    CHECK như schema hiện tại. Mở rộng danh mục là giới hạn đã biết.
+  Vì sao
+    Đủ cho đa số nông sản thực phẩm (thu hoạch → gộp → chế biến → đóng gói).
+    Phân biệt khi trình bày: hoạt động canh tác mở rộng tự do bằng dữ liệu
+    (activity_type.code là chữ tự do); chỉ loại lô/sự kiện lô là cố định.
+  Ảnh hưởng tới: D1_D2_schema_design.md mục giới hạn
+
+[SD-12] Trang QR hiển thị "bị từ chối"                          ĐÃ CHỐT
+  Quyết định
+    - Hiện rõ nhãn "Bị từ chối", kèm tên hoạt động và ngày.
+    - Hiện VAI TRÒ người xác minh (vd "kỹ thuật viên"), không hiện tên.
+    - KHÔNG hiện ghi chú tự do (verification.note) — đó là ghi chú nội bộ.
+    - Dùng cột có sẵn activity_type.public_level: hoạt động "private" chỉ hiện
+      số lượng bị từ chối, không hiện chi tiết.
+  Vì sao
+    Trung thực với người tiêu dùng nhưng không lộ thông tin cá nhân hay nội bộ.
+  Ảnh hưởng tới: thiết kế trang QR · D1_D2_schema_design.md
+
+[SD-13] Hai trục trạng thái và nhãn hiển thị                    ĐÃ CHỐT
+  Quyết định
+    - Dữ liệu lõi giữ 2 trục độc lập: độ đầy đủ minh chứng × trạng thái xác minh.
+      Thay cho "4 trạng thái" chốt ngày 25/11.
+    - Lõi có MỘT view ánh xạ ra nhãn hiển thị (vd v_activity_display_state) để
+      trang QR, web nhà đầu tư và mọi bên gọi vào hiện giống nhau.
+    Quy tắc ánh xạ — xét từ trên xuống, gặp dòng nào đúng thì dừng:
+      1. Kết luận xác minh hiệu lực = rejected          → "Bị từ chối"
+      2. missing_evidence hoặc missing_inputs          → "Thiếu minh chứng"
+      3. complete và verified                          → "Đã xác minh"
+      4. complete và unverified                        → "Tự khai, chưa xác minh"
+    Trường hợp đặc biệt (test R4): đã xác minh nhưng 0 minh chứng → hiện
+    "Thiếu minh chứng", vì trang QR phải thể hiện trung thực độ đầy đủ.
+  Vì sao
+    - Không lưu 4 trạng thái vì có tổ hợp thang 4 trạng thái không biểu diễn
+      được (R4). Lưu 2 trục, hiển thị 4 nhãn: 4 nhãn cũ vẫn còn, nhưng ở lớp
+      hiển thị.
+    - Ánh xạ đặt trong lõi để không mỗi ứng dụng tự diễn giải một kiểu.
+  Thời điểm: quy tắc viết vào tài liệu thiết kế trước 29/11; view cài sau 29/11.
+  Ảnh hưởng tới: plan.md mục 0 · tiêu chí O1 · D1_D2_schema_design.md · trang QR
+
+
+========================================================================
+D. MINH CHỨNG CHO ĐACN
+========================================================================
+
+[SD-14] Vai trò trang QR                                        CHỜ THẦY
+  Vấn đề
+    Ghi nhận cũ (họp với thầy): "QR bắt buộc, làm trước" do nhà đầu tư yêu cầu.
+    Nhóm nay ưu tiên early proof (chứng minh mô hình) là cốt lõi, QR là best
+    practice.
+  Câu hỏi gửi thầy: QR có phải điều kiện nghiệm thu ĐACN không; nếu có, mốc nào
+    phải chạy được?
+  Trong lúc chờ
+    - Không tự hạ QR thành "không bắt buộc" trên slide.
+    - QR KHÔNG còn chặn việc nộp 29/11, vì E4 đã đổi sang minh chứng cho năng lực
+      truy xuất (SD-18), không còn là "trang QR".
+  Ảnh hưởng tới: SD-04 · plan.md Việc 3 · plan.md mục 4
+
+[SD-15] Bộ kiểm thử cho E3 / E4                                 ĐÃ CHỐT
+  Quyết định
+    6 kịch bản K1–K6 trên mock 3 hộ + 1 chu kỳ lạc, chạy trên SQLite và
+    PostgreSQL. Chỉ tính đạt theo kết quả chạy thật.
+      K1 truy ngược chai 80ml         → F6 (đã có)
+      K2 truy ngược chai 250ml        → test mới
+      K3 thiếu minh chứng             → F2 F3 F5 (đã có)
+      K4 bị từ chối                   → V4 R5 (đã có)
+      K5 bản ghi bị sửa               → F2 F12 (đã có)
+      K6 thêm cây lạc, chạy đủ chu kỳ → test mới, thay F15 (F15 hiện là hằng
+                                        đúng, không kiểm gì)
+    Mức dự kiến: P (dữ liệu mock, 1 vụ, chưa thử dữ liệu thật).
+  Ảnh hưởng tới: Evidence Board E3, E4 · plan.md Việc 2 · db/smoke_test.py
+
+[SD-16] Mức của E2                                              ĐÃ CHỐT
+  Quyết định
+    Nếu chưa kiểm thử trực tiếp: E2 giữ mức P, dựa trên tài liệu; ghi rõ nguồn,
+    cách khảo sát, kết quả và "chưa kiểm thử trực tiếp" ở cột giới hạn.
+  Ảnh hưởng tới: Evidence Board E2
+
+[SD-17] Hai đóng góp chính                                      ĐÃ CHỐT
+  Quyết định
+    C1 — Lõi đánh giá minh chứng canh tác theo cấu hình cây     → O1 → E3
+    C2 — Truy xuất lô thành phẩm về nguồn và minh chứng         → O2 → E4
+    QR là một cách trình bày/tra cứu của C2, không phải bản thân đóng góp.
+  Ảnh hưởng tới: slide Fishbone · Evidence Board · plan.md mục 1
+
+[SD-18] Cấu trúc Evidence Board                                 ĐÃ CHỐT
+  Quyết định
+    Mỗi dòng là bằng chứng cho một khẳng định, không phải một việc đã làm.
+    ID / Claim   Bằng chứng                                    Mức dự kiến
+    E1 · P1      Khảo sát người tiêu dùng n=50 (27/50 muốn     P
+                 xem tóm tắt trước); 19,6% sản phẩm đăng ký
+                 có dữ liệu truy xuất
+    E2 · S1      8 giải pháp × 7 tiêu chí, từ tài liệu          P
+    E3 · C1      K3, K4, K5, K6                                 P
+    E4 · C2      K1, K2 + phần không truy được (R1, N1, N2)     P
+                 + tỷ lệ từ chu kỳ đủ minh chứng (F7)
+  Vì sao
+    Trước đây E4 = "Trang QR" ở mức M. Khi C2 là năng lực truy xuất (SD-17),
+    bằng chứng đúng cho C2 là các test truy ngược. Một bộ dữ liệu được dùng cho
+    hai khẳng định, miễn ghi rõ liên hệ — hướng dẫn cho phép. Kết quả: không còn
+    dòng M, và câu hỏi QR (SD-14) không chặn mốc 29/11.
+  Ảnh hưởng tới: slide Evidence Board · plan.md mục 2
+
+
+========================================================================
+E. LỊCH SỬ — CÁC QUYẾT ĐỊNH TRƯỚC 27/11 (để tra cứu)
+========================================================================
+  Quyết định                                                   Nguồn
+  - Đề tài #6; ĐACN giới hạn ở cây mè                          Họp với thầy
+  - Mè đen 2 vỏ, quy trình Bình Thuận; farm mock ở Tây Ninh     Tài liệu Project, F&S
+  - Dầu mè rang chai 80ml / 250ml; can 25kg ngoài phạm vi       foodnseed.vn
+  - Thu mua, vận chuyển chỉ ghi ngày                           Họp với thầy
+  - Dữ liệu demo là mock                                       Họp với thầy
+  - Lõi dùng chung + crop profile; cây thứ 2 demo là lạc;
+    không hard-code "một vụ = một lần gieo"                    Nhóm, 25/11
+  - Visibility, Predictability để ĐATN, schema lưu sẵn dữ liệu Slide công ty
+  - Khung báo cáo: Hướng dẫn bảo vệ ĐACN v4, mẫu slide 2–3      Drive của thầy
+  Đã thay thế
+  - "QR bắt buộc, làm trước" (họp với thầy)                    → đang hỏi lại, SD-14
+  - "4 trạng thái minh chứng" (nhóm, 25/11)                    → thay bằng SD-13
