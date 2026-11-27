@@ -1,8 +1,9 @@
 # Plan ĐACN — Lõi truy xuất có minh chứng cho chuỗi mè → dầu mè
 
 > Đề tài #6 — Agricultural Digital Thread & Evidence-aware Traceability
-> Cập nhật: 26/11/2026 · Nhóm 3 người (A, B, C — điền tên)
-> Mốc gần nhất: **29/11/2026 gửi thầy Fishbone & Evidence Board** (còn 3 ngày) · Bảo vệ ĐACN: cuối năm (chờ lịch)
+> Cập nhật: 28/11/2026 · Nhóm: **Duy Quý** (trưởng nhóm) · **Mạnh Dũng** (kỹ thuật) · **Duy Đan** (nội dung & minh chứng)
+> Mốc gần nhất: **29/11/2026 gửi thầy Fishbone & Evidence Board** (còn 1 ngày) · Bảo vệ ĐACN: cuối năm (chờ lịch)
+> **Mọi quyết định phạm vi và thiết kế: `Project_Scope_Decision.txt` (SD-01 … SD-18).** File này chỉ giữ kế hoạch và phân công; nếu hai nơi nói khác nhau, theo sổ quyết định.
 > Repo code: https://github.com/pdiqui-17/DigitalX---Traceability-Core
 
 ---
@@ -16,24 +17,25 @@
 | Sản phẩm | Dầu mè rang chai 80ml / 250ml (F&S). Can 25kg bán sỉ: ngoài phạm vi | foodnseed.vn |
 | Thu mua, vận chuyển | Chỉ ghi ngày | Họp với thầy |
 | Dữ liệu demo | Mock | Họp với thầy |
-| QR | Bắt buộc, làm trước (nhà đầu tư yêu cầu) | Họp với thầy |
+| QR | Best practice; ưu tiên early proof chứng minh mô hình. Tính bắt buộc đang mở lại để đối chiếu nhiệm vụ đã duyệt và xác nhận với GVHD (SD-14) | Phản hồi nhóm 27/11; cần đối chiếu ghi nhận họp trước |
 | Mở rộng | Lõi dùng chung + crop profile; cây thứ 2 để demo là **lạc (mock)**; không hard-code "một vụ = một lần gieo" | Nhóm chốt 25/11 |
-| Trạng thái minh chứng | 4 trạng thái: thiếu / tự khai / đã xác minh / bị từ chối | Nhóm chốt 25/11 |
-| Lớp tiêu chí | ĐACN chứng minh Assurance + QR; Visibility, Predictability để ĐATN nhưng schema lưu sẵn dữ liệu | Đối chiếu slide công ty |
+| Trạng thái minh chứng | Lõi giữ hai trục riêng: độ đầy đủ minh chứng × trạng thái xác minh; cần cơ chế tính/ánh xạ trong lõi. QR không cần phơi bày mọi tổ hợp (SD-13) | Nhóm chốt nguyên tắc 27/11 |
+| Lớp tiêu chí | Early proof chứng minh mô hình là cốt lõi; QR là best practice, nghĩa vụ bắt buộc cần xác nhận (SD-14). Visibility, Predictability để ĐATN nhưng schema lưu sẵn dữ liệu | Phản hồi nhóm 27/11; đối chiếu GVHD |
 | Khung báo cáo | Hướng dẫn bảo vệ ĐACN v4 + mẫu Fishbone & Evidence Board v4 (slide 2–3, đề tài phần mềm) | Drive của thầy |
 
 ## 1. Lập luận đề tài (bản nháp)
 
 - **P1 — Vấn đề:** Doanh nghiệp đầu tư vùng trồng mè phân tán nhưng không kiểm chứng được hoạt động canh tác; QR trên chai dầu không chứng minh được nguồn gốc. Hệ thống quốc gia: 821.734 sản phẩm đăng ký nhưng chỉ 161.324 (≈19,6%) có dữ liệu truy xuất.
 - **S1 — Khảo sát:** Giải pháp hiện có làm từng mảnh; chưa thấy giải pháp nào kết hợp (1) quy trình theo cây làm khung kỳ vọng, (2) minh chứng và trạng thái xác minh theo từng hoạt động, (3) truy qua gộp lô và chuyển hóa, (4) trang QR thể hiện trung thực độ đầy đủ.
-- **Mục đích:** Lõi dữ liệu truy xuất có minh chứng cho chuỗi mè – dầu mè, cho phép truy ngược từ lô dầu về từng hoạt động canh tác và mức độ minh chứng của hoạt động đó.
-- **O1:** Mô hình dữ liệu canh tác có minh chứng, cấu hình theo loại cây.
-  *Tiêu chí:* biểu diễn đủ 11 bước quy trình mè; mỗi hoạt động có 1 trong 4 trạng thái; thêm cây lạc chỉ bằng cấu hình, không sửa schema; xuất được dữ liệu tối thiểu của hệ thống quốc gia.
-- **O2:** Khả năng truy ngược từ QR lô dầu, qua gộp lô, về minh chứng.
-  *Tiêu chí:* trên bộ mock (3 hộ → 1 lô ép → 2 lô chai) mọi chai truy đúng tập hộ nguồn kèm tỷ lệ; chỉ số đầy đủ tính đúng ở các kịch bản thiếu minh chứng cài sẵn.
+- **Mục đích:** Lõi truy xuất nguồn gốc có minh chứng, cấu hình được theo loại nông sản; chuỗi mè đen → dầu mè là trường hợp chính để kiểm chứng.
+- **O1:** Khả năng xác định mức độ minh chứng của từng hoạt động canh tác so với quy trình của loại cây.
+  *Tiêu chí đã chốt:* (1) tự tính riêng độ đầy đủ và trạng thái xác minh; (2) phát hiện hoạt động bắt buộc bị thiếu hoặc lệch lịch; (3) sửa hoạt động có phiên bản cũ, lý do, minh chứng không tự chuyển; (4) thêm cây bằng cấu hình và chạy đủ một chu kỳ.
+  *Đã bỏ khỏi O1 (SD-02):* “đủ 11 bước mè” → tiêu chí của bộ mock (Việc 1); “xuất dữ liệu tối thiểu quốc gia” → OUT/ĐATN.
+- **O2:** Khả năng truy ngược từ lô thành phẩm, qua gộp và chế biến, về nguồn và minh chứng.
+  *Tiêu chí đã chốt:* trên bộ mock (3 hộ → 1 lô ép → 2 lô chai), truy đúng hộ nguồn và tỷ lệ; bắt buộc hiện phần không truy được và tính đúng tỷ lệ nguồn từ chu kỳ đủ minh chứng.
 - **D1 → O1:** Lõi entity chung + crop profile; sự kiện chỉ ghi thêm, sửa tạo bản mới kèm lý do (tham chiếu W3C PROV).
-- **D2 → O2:** Sự kiện lô theo EPCIS (Aggregation, Transformation), đồ thị nguồn gốc lô, Traceability API, trang QR (tóm tắt trước, chi tiết sau).
-- **C1:** Traceability core (E3) · **C2:** Trang QR truy ngược (E4)
+- **D2 → O2:** Sự kiện lô theo EPCIS (Aggregation, Transformation), đồ thị nguồn gốc lô và danh sách API; prototype API tùy thời gian. Định hướng dịch vụ trung tâm, triển khai ở ĐATN (SD-06). Vai trò trang QR chờ thầy (SD-14).
+- **C1:** Lõi đánh giá minh chứng canh tác theo cấu hình cây → O1 → **E3** (K3, K4, K5, K6) · **C2:** Truy xuất lô thành phẩm về nguồn và minh chứng → O2 → **E4** (K1, K2, R1, N1, N2, F7). QR là cách trình bày của C2 (SD-17, SD-18).
 
 ## 2. Trạng thái hiện tại
 
@@ -42,8 +44,8 @@
 | E1 · P1 | Khảo sát người tiêu dùng n=50 + số liệu hệ thống quốc gia | Có bản phân tích, mức **P** | Chat 22/11; file CSV khảo sát |
 | E2 · S1 | Khảo sát giải pháp, 8 giải pháp, 7 tiêu chí | Bản 4, mức **P**, **chưa kiểm thử trực tiếp** | Project: `claude/S1_khao_sat_giai_phap.md` |
 | D1/D2 | Thiết kế lõi, crop profile, luồng lô | **Schema v0.5, 87/87 kiểm tra, 4 vòng đánh giá** — còn thiếu sơ đồ tuần tự, phác API, mô hình phân quyền | `docs/D1_D2_schema_design.md`; repo GitHub |
-| E3 · C1 | Chuỗi mock + kiểm tra truy ngược | **Chưa có (M)** | — |
-| E4 · C2 | Trang QR | **Chưa có (M)** | — |
+| E3 · C1 | Kiểm thử đánh giá minh chứng: K3, K4, K5 (đã có test) + K6 (test lạc, chưa có) | **Chưa có kết quả** — chờ K6 | `db/smoke_test.py` |
+| E4 · C2 | Kiểm thử truy xuất: K1, R1, N1, N2, F7 (đã có test) + K2 (chưa có) | **Chưa có kết quả** — chờ K2 | `db/smoke_test.py` |
 | Outline báo cáo | | **Chưa có** | — |
 | 2 slide DefenseBoard | | **Chưa có** | — |
 
@@ -51,36 +53,41 @@
 
 > Thứ tự đúng: **thiết kế dữ liệu (Việc 0) → dữ liệu mock theo schema (Việc 1) → prototype kiểm tra (Việc 2)**. Đây là lõi của đề tài #6 ("canonical schema, provenance model, traceability API"), nên phải có trước khi sinh dữ liệu.
 
-### Phân công theo người và theo ngày (cập nhật 26/11)
+### Phân công theo người và theo ngày (cập nhật 28/11)
 
-Nguyên tắc: người không trực tiếp thiết kế là người đặt câu hỏi phản biện, không tự viết test kỹ thuật — đúng cách vòng đánh giá 4 tìm ra 30 lỗi mà bộ test tự viết của người thiết kế không bắt được (xem `docs/CHANGELOG.md` v0.5). Vai trò dưới đây không nhất thiết trùng A/B/C ở trên — nhóm tự đối chiếu tên thật.
+> Bảng này thay cho ngày và người ghi ở tiêu đề các Việc 0–9 bên dưới. Nội dung từng Việc vẫn dùng để tham khảo.
 
-**Người 1 — trưởng nhóm (điều hành thảo luận & quyết định, không code)**
+Nguyên tắc: người không trực tiếp thiết kế là người đặt câu hỏi phản biện, không tự viết test kỹ thuật — đúng cách vòng đánh giá 4 tìm ra 30 lỗi mà bộ test tự viết của người thiết kế không bắt được (xem `docs/CHANGELOG.md` v0.5).
 
-| Ngày | Việc |
-|---|---|
-| 26/11 | Họp với Người 2, dùng bộ 5 câu hỏi (phụ lục cuối mục này). Ghi lại câu trả lời mơ hồ để bàn lại. Điền tên thật + người phụ trách + thời hạn cụ thể vào mục 4 (hiện ghi chung "Buổi góp ý"). |
-| 27/11 | Họp lại sau khi Việc 2 (K6 chạy thật) và luồng QR (Việc 0 bổ sung) có kết quả — hỏi lại đúng 5 câu, đòi bằng chứng cụ thể thay vì lời hứa. Quyết định: giới hạn `lot_type`/`event_type` cố định ghi vào "giới hạn đã biết" hay sửa luôn nếu còn kịp. |
-| 28/11 | Chủ trì Việc 7 (chốt lập luận) dùng đúng "Câu hỏi hội đồng cần chuẩn bị sẵn" ở mục 5. Rà Evidence Board (Việc 6, do Người 3 tổng hợp) — gạch bỏ dòng nói quá so với minh chứng thật. Duyệt slide (Việc 8). |
-| 29/11 | Việc 9: kiểm quyền truy cập GVHD, tên file đúng chuẩn, gửi thầy. |
+**Duy Quý — trưởng nhóm (điều hành, quyết định, liên hệ thầy; không code)**
 
-**Người 2 — kỹ thuật (schema, test, QR)**
+| Ngày | Việc | Xong khi |
+|---|---|---|
+| 27/11 ✅ | Bàn với Mạnh Dũng và chốt các quyết định thiết kế SD-01 … SD-18 | Đã ghi vào `Project_Scope_Decision.txt` |
+| 28/11 sáng | Gửi sổ quyết định cho Mạnh Dũng và Duy Đan, yêu cầu đọc phần TÓM TẮT. Duyệt mục 4 (câu hỏi gửi thầy) | Cả nhóm đã đọc; mục 4 đúng ý |
+| 28/11 chiều | Viết nội dung slide Fishbone theo sổ quyết định (Claude soạn nháp): Mục đích, O1/O2 kèm tiêu chí, IN/OUT, D1/D2, C1/C2, ranh giới ĐACN–ĐATN | Mỗi ô 1–2 dòng, khớp SD |
+| 28/11 tối | Chủ trì rà ngược chuỗi E → C → O → Mục đích (Việc 7) cùng cả nhóm; gạch mọi câu nói quá bằng chứng | Mỗi C có E; không còn số liệu chưa chạy |
+| 29/11 | Việc 9: đánh dấu đủ checklist 4.2, đặt tên file đúng chuẩn, kiểm tra thầy mở được repo và mọi link, gửi thầy | Đã gửi |
 
-| Ngày | Việc |
-|---|---|
-| 26/11 | Chạy lại K6 (Việc 2) với một chu kỳ lạc đầy đủ từ đầu đến cuối — sửa `check("F15", ..., True, ...)` trong `db/smoke_test.py` (hiện là hằng đúng, không kiểm gì thật) thành so sánh kết quả thật. Chuẩn bị giải thích kết quả bằng lời cho Người 1. |
-| 27/11 | Vẽ sơ đồ luồng quét QR + bảng API tối thiểu (đầu ra còn thiếu của Việc 0). Viết rõ giới hạn `lot_type`/`event_type` cố định vào `docs/D1_D2_schema_design.md`. Bắt đầu Việc 1 (bộ mock mè 11 bước + lạc) và Việc 3 (trang QR demo) nếu kịp. |
-| 28/11 | Chạy nốt K1–K6 cho mè, ra số liệu "x/7 kịch bản đạt" cho Evidence Board. Trả lời phản biện nội bộ của Người 1. |
+**Mạnh Dũng — kỹ thuật (schema, test, tài liệu thiết kế)**
 
-**Người 3 — khảo sát thực địa & nội dung (Việc 4, 5, 6)**
+| Ngày | Việc | Xong khi |
+|---|---|---|
+| 28/11, trước 14h | Trong `db/smoke_test.py`: thay `F15` (hằng đúng) bằng test K6 chạy đủ một chu kỳ lạc; thêm test K2 (chai 250ml đúng 3 hộ, đúng tỷ lệ). Chạy SQLite và PostgreSQL. Claude có thể viết nháp code test để duyệt | Commit kèm log; gửi Duy Đan số liệu E3 (K3–K6) và E4 (K1, K2, R1, N1, N2, F7) |
+| 28/11 chiều | Trong `docs/D1_D2_schema_design.md`: thêm mục định nghĩa độ đầy đủ (SD-07), quy tắc ánh xạ nhãn (SD-13), quy tắc hiển thị "bị từ chối" (SD-12), thiết kế rút lại liên kết (SD-10), định hướng dịch vụ trung tâm (SD-06); sửa bảng mục 7 (bỏ `F15`, chuyển "11 bước" sang bộ mock) | Tài liệu khớp code và sổ quyết định |
+| 28/11 tối | Commit mọi thay đổi tài liệu đang treo (`plan.md`, `D1_D2_schema_design.md`) | `git status` sạch, đã push |
+| Sau 29/11 | Cài đặt view ánh xạ nhãn (SD-13) và bảng rút lại liên kết (SD-10) qua `gen_views.py` / `gen_triggers.py`, kèm test; bộ mock 11 bước (Việc 1); trang QR nếu thầy xác nhận (SD-14) | Có test chạy đạt |
 
-| Ngày | Việc |
-|---|---|
-| 26/11 | Việc 4: quét QR thật 8–10 sản phẩm, chấm T1–T7, chụp màn hình. Việc 5: bấm thử 14 link nguồn S1, lưu PDF vào `S1/nguon/`. |
-| 27/11 | Cập nhật S1 lên bản 5 với kết quả kiểm thử tay thật. Viết outline báo cáo (Việc 6) theo khung P→S→O→D→C, gắn mã minh chứng từng mục. |
-| 28/11 | Tổng hợp Evidence Board 5 cột (ID/Claim · Cách thu thập & phạm vi · Kết quả quan sát · Chất lượng/giới hạn · Nguồn·Owner·Status). Phối hợp Người 1 ghép slide (Việc 8). |
+**Duy Đan — nội dung & minh chứng (Việc 4, 5, Evidence Board, slide)**
 
-**Phụ lục — 5 câu hỏi phản biện cho Người 1**
+| Ngày | Việc | Xong khi |
+|---|---|---|
+| 28/11 sáng | E1: link trực tiếp tới file CSV khảo sát, kiểm tra thầy mở được. E2: bấm thử 14 link nguồn S1 (Việc 5); nếu kịp, quét thử 5–8 mã QR thật (Việc 4) | Có link trực tiếp; có mẫu số nếu đã kiểm thử |
+| 28/11 chiều | Điền Evidence Board 4 dòng, đủ 5 cột, theo SD-18 (E3 cho C1, E4 cho C2). Lấy số liệu từ Mạnh Dũng | Không ô nào trống hoặc ghi "link" chung chung |
+| 28/11 tối | Ghép 2 slide cùng Duy Quý theo mẫu gốc của thầy (Việc 8) | File `.pptx` đúng mẫu slide 2–3 |
+| Sau 29/11 | Outline báo cáo (Việc 6). Mốc 29/11 không cần: ô link báo cáo ghi "Chưa có" | — |
+
+**Phụ lục — 5 câu hỏi phản biện cho trưởng nhóm**
 
 1. **Đổi cây trồng** — "Nếu mai mốt đổi từ mè sang một nông sản khác hẳn — không ép dầu mà bán thô, hoặc thêm bước sấy/phân loại — mình cần sửa code hay chỉ cần nhập thêm dữ liệu?"
    ✅ Yên tâm nếu: phân biệt rõ "hoạt động canh tác" (linh hoạt) với "loại lô hàng/sự kiện lô" (đang cố định — 4 `lot_type`, 5 `event_type`, viết cứng trong schema). 🚩 Hỏi tiếp nếu: trả lời "tất cả đều linh hoạt" mà không nhắc giới hạn này.
@@ -140,7 +147,7 @@ Nguyên tắc: người không trực tiếp thiết kế là người đặt c�
 
 > ⚠️ 26/11: bản cũ của K6 (`F15` trong `db/smoke_test.py`) là `check(..., True, ...)` — hằng đúng, không kiểm gì thật. Người 2 sửa lại thành so sánh kết quả thật trước khi tính K6 là đạt.
 
-- **Đầu ra:** script + kết quả chạy (log/bảng) → dòng **E3 · C1** với mẫu số, ví dụ "7/7 kịch bản đạt trên bộ mock 3 hộ + 1 chu kỳ lạc".
+- **Đầu ra:** script + kết quả chạy (log/bảng) → hai dòng Evidence Board (SD-18): **E3 · C1** = K3, K4, K5, K6; **E4 · C2** = K1, K2 + R1, N1, N2, F7. Ghi mẫu số, ví dụ "4/4 kịch bản đạt trên bộ mock 3 hộ + 1 chu kỳ lạc; SQLite + PostgreSQL".
 - **Giới hạn cần ghi:** dữ liệu mock, 1 vụ, 3 hộ; chưa thử với dữ liệu thật.
 
 ### Việc 3 — Trang QR (E4 → C2) · 25–27/11 · Claude dựng bản demo, C duyệt
@@ -179,9 +186,9 @@ Khung đề xuất (đi theo mạch P → S → O → D → C):
 ### Việc 7 — Chốt lập luận · Tối 27/11 · Cả nhóm
 - Đọc lại P1, S1 (sau kiểm thử), Mục đích, O1/O2, IN/OUT.
 - Nếu kiểm thử thấy đã có sản phẩm làm được T3 → sửa câu gap (3 vế còn lại vẫn đứng).
-- Chốt 2 câu hỏi mở trên Whiteboard (hiện "bị từ chối" trên QR? sai lệch mốc ngày cho phép?) hoặc đưa vào "Nội dung cần xác nhận".
+- Cập nhật quyết định: QR hiển thị rõ "bị từ chối" (SD-12); mức chi tiết còn mở. SD-14 cần xác nhận QR bắt buộc hay là best practice, do có khác biệt với ghi nhận trước.
 
-### Việc 8 — Ghép 2 slide DefenseBoard · 28/11 · A, Claude dựng bản nháp
+### Việc 8 — Ghép 2 slide DefenseBoard · 28/11 · Duy Quý + Duy Đan, Claude dựng bản nháp
 - Tải mẫu gốc của thầy từ Drive, dùng slide 2–3 (đề tài phần mềm), giữ nguyên định dạng.
 - Tối đa 2 mục tiêu, 2 đóng góp, 4 minh chứng; mỗi ô 1–2 dòng; chưa có thì ghi "Chưa có".
 - Đổi nhãn ô trung tâm thành "Mục đích đề tài".
@@ -189,16 +196,19 @@ Khung đề xuất (đi theo mạch P → S → O → D → C):
 - Tên file: `DACN_<MaNhom>_<TenDeTai>_DefenseBoard.pptx`.
 - **Checklist 4.2 của thầy** — đánh dấu từng ô trước khi gửi.
 
-### Việc 9 — Gửi thầy · 29/11 · Dũng
+### Việc 9 — Gửi thầy · 29/11 · Duy Quý
 
-## 4. Nội dung cần xác nhận (đưa vào slide)
+## 4. Nội dung cần xác nhận với thầy (đưa vào slide)
+
+Chỉ gồm câu hỏi cần GVHD trả lời. Các quyết định nhóm tự chốt nằm ở `Project_Scope_Decision.txt`, không đưa vào đây. "Phụ trách" là người đưa câu hỏi lên slide và theo dõi câu trả lời.
 
 | Mã | Vấn đề | Phụ trách | Hạn |
 |---|---|---|---|
-| E1 | Nhu cầu doanh nghiệp chỉ là thông tin thứ cấp ("theo thông tin khách hàng") — thầy/F&S có số liệu cụ thể hơn không (số hộ, diện tích, cách ghi chép hiện tại)? | Dũng | Buổi góp ý |
-| D1 | Trang QR có hiện trạng thái "bị từ chối" không, hay gộp thành "chưa xác minh được"? | Dũng | Buổi góp ý |
-| P1 | Farm mock ở Tây Ninh, quy trình lấy theo Bình Thuận — có phù hợp không? | Dũng | Buổi góp ý |
-| E1 | Khảo sát người dùng thật (nông hộ, kỹ thuật viên) để ĐATN? | Dũng | Buổi góp ý |
+| SD-14 | QR có phải điều kiện nghiệm thu ĐACN không (ghi nhận cũ: bắt buộc, do nhà đầu tư yêu cầu)? Nếu có, mốc nào phải chạy được? | Duy Quý | Đưa lên slide 29/11 |
+| P1 | Farm mock ở Tây Ninh, quy trình lấy theo Bình Thuận — có phù hợp không? | Duy Quý | Đưa lên slide 29/11 |
+| D1 | Dung sai ngày cho phép khi so lịch canh tác (`tolerance_days`) — thầy/F&S có con số thực tế không? | Mạnh Dũng | Đưa lên slide 29/11 |
+| E1 | Nhu cầu doanh nghiệp chỉ là thông tin thứ cấp — thầy/F&S có số liệu cụ thể hơn không (số hộ, diện tích, cách ghi chép hiện tại)? | Duy Đan | Đưa lên slide 29/11 |
+| E1 | Khảo sát người dùng thật (nông hộ, kỹ thuật viên) để ĐATN? | Duy Đan | Đưa lên slide 29/11 |
 
 ## 5. Sau 29/11 đến bảo vệ
 
@@ -214,7 +224,7 @@ Khung đề xuất (đi theo mạch P → S → O → D → C):
 - Nhà nước đã có hệ thống truy xuất rồi, làm thêm để làm gì? (bổ sung lớp minh chứng, tương thích dữ liệu tối thiểu)
 - Hôm nay là mè, mai là cây khác được không? (crop profile, demo lạc, không hard-code vụ)
 - Cây khác hẳn như cây lâu năm thì sao? (chu kỳ canh tác không cố định một lần gieo; để ĐATN)
-- Minh chứng do nông dân tự khai thì tin được không? (4 trạng thái, phân biệt tự khai và đã xác minh)
+- Minh chứng do nông dân tự khai thì tin được không? (tách độ đầy đủ khỏi xác minh; nêu giới hạn của kiểm tra số lượng/loại và ý nghĩa xác minh)
 
 **ĐATN (tiếp nối):** nhiều farm/vụ/lô; cây thứ 2 thật và một cây lâu năm; chỉ số độ tin cậy; IoT; AI Story; dashboard Visibility/Predictability cho nhà đầu tư; khảo sát phía nông hộ.
 
@@ -225,7 +235,8 @@ Khung đề xuất (đi theo mạch P → S → O → D → C):
 | Kiểm thử S1 không kịp | E2 chỉ mức P từ tài liệu | Giới hạn 1 ngày; nộp P, ghi vào "cần xác nhận" |
 | Kiểm thử phát hiện đã có sản phẩm làm được T3 | Phải sửa câu gap | 3 vế còn lại vẫn đứng; sửa tối 27/11 |
 | Link nguồn chết (tên miền tỉnh đã sáp nhập) | Mất minh chứng | Lưu PDF mọi nguồn; tránh tên miền tỉnh cũ |
-| Trang QR không kịp trước 29/11 | E4 mức M | Thầy chấp nhận M với kế hoạch rõ ràng |
+| Trang QR không kịp trước 29/11 | Không ảnh hưởng Evidence Board: E4 là kiểm thử truy xuất (SD-18) | Chờ thầy trả lời SD-14 rồi lên lịch |
+| K2/K6 chưa chạy xong trước chiều 28/11 | E3/E4 không có số liệu | Ghi đúng phần đã chạy (vd "K1, K3–K5 đạt; K2, K6 chưa chạy"), không ghi đạt khi chưa chạy |
 | Scope phình theo yêu cầu nhà đầu tư | Trễ ĐACN | Bám bảng phân lớp tiêu chí ở mục 0 |
 
 ## 7. Tài liệu liên quan

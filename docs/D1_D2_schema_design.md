@@ -253,7 +253,7 @@ Mỗi bản ghi nhập vào biết đến từ đâu (`source_channel`) và mã 
 | Tiêu chí | View | Kiểm tra |
 |---|---|---|
 | O1 · 11 bước quy trình mè | `activity_type` theo `stage` | (bộ mock Việc 1) |
-| O1 · 4 trạng thái mỗi hoạt động (2 chiều) | `v_activity_status` | F1, F2, R4 |
+| O1 · Hai trục trạng thái độc lập mỗi hoạt động (độ đầy đủ × xác minh) | `v_activity_status` | F1, F2, R4 |
 | O1 · Thêm cây lạc không sửa schema | — | F15 |
 | O1 · Hoạt động bắt buộc chưa ghi bị phát hiện | `v_cycle_expected`, `v_cycle_completeness` | F3–F5 |
 | O2 · Chai truy đúng hộ nguồn + tỷ trọng | `v_lot_sources` | F6, R1 |
@@ -292,12 +292,16 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 | 7e | Hiệu năng view tính cho mọi lô | Agent đo v0.4: `v_lot_status` 1,5 s ở 200 hộ/2.000 lô, CTE gieo một lô 0,4 ms | Trang QR dùng truy vấn tham số hóa cho một lô |
 | 8 | Luật cách ly và yêu cầu minh chứng đang là giả định | `is_assumption = 1` | **Đối chiếu nhãn thuốc thật** |
 | 9 | Sai lệch mốc ngày cho phép | `tolerance_days` | **Hỏi thầy** |
-| 10 | Hiện "bị từ chối" trên QR? | DB lưu đủ | **Hỏi thầy / F&S** |
+| 10 | Mức chi tiết khi hiện "bị từ chối" trên QR | Nhóm chốt hiển thị rõ trạng thái; chưa chốt có hiện lý do/chi tiết nào | Chốt nội dung với GVHD/F&S nếu cần |
+| 11 | Tách dữ liệu theo tổ chức | Hiện `crop_profile` không có `organization_id`; cấu hình hiện dùng chung | Ngoài phạm vi hiện tại; nhắc rà lại trước khi triển khai đa tổ chức |
+| 12 | Rollback liên kết minh chứng gắn nhầm | Chưa có cơ chế; các liên kết chỉ ghi thêm | Đề xuất bảng sự kiện rút lại/thay thế có link gốc, người thực hiện, thời điểm và lý do; view loại liên kết đã rút khỏi trạng thái hiệu lực nhưng giữ lịch sử |
+| 13 | Ánh xạ hai trục trạng thái ra nhãn dùng được | Lõi giữ riêng độ đầy đủ và xác minh; nhóm yêu cầu cơ chế tính/ánh xạ trong lõi | Chưa chốt quy tắc ánh xạ và nhãn QR; QR không cần trình bày mọi tổ hợp nội bộ |
 
 ## 9. Việc tiếp theo
 - Việc 1: bộ mock đầy đủ (crop profile mè 11 bước + lạc) theo v0.5.
 - Việc 2: kịch bản K1–K6 → E3; truy vấn tham số hóa cho trang QR và đo thời gian.
 - Đối chiếu nhãn thuốc thật cho luật cách ly; hỏi thầy dung sai ngày và việc hiện "bị từ chối" trên QR.
+- Khi rà thiết kế, xem lại ranh giới dữ liệu theo tổ chức (SD-08); đề xuất cơ chế rollback liên kết minh chứng gắn nhầm (SD-10); chốt quy tắc ánh xạ hai trục trạng thái (SD-13).
 
 ## 10. Câu hỏi hội đồng dự kiến
 
