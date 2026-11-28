@@ -14,7 +14,7 @@
 | `views_sqlite.sql` / `views_postgres.sql` | **Sinh bởi `gen_views.py`.** 6 view có phép so ngày: lịch dự kiến, độ đầy đủ chu kỳ, trạng thái lô, vi phạm cách ly, kiểm nhất quán, digital timeline |
 | `run_scenarios.py` | **Bản chính cho K1–K6** (minh chứng E3, E4): `python run_scenarios.py lac` (SQLite) hoặc `lac --pg` (PostgreSQL); `--log <file>` ghi log UTF-8 |
 | `seed_me.sql`, `seed_lac.sql` | Bộ mock cho K1–K6: 3 hộ mè + chu kỳ chưa có ngày gieo; hộ D trồng lạc (chỉ INSERT) |
-| `smoke_test.py` | 87 kiểm tra hồi quy: `python smoke_test.py sqlite` hoặc `postgres` |
+| `smoke_test.py` | 103 kiểm tra hồi quy: `python smoke_test.py sqlite` hoặc `postgres` |
 | `dbtools.py` | Kết nối dùng chung SQLite / PostgreSQL (qua `psql`, cấu hình `db/.env`, mẫu `db/.env.example`) và ghi log UTF-8 |
 | `logs/` | Log kết quả chạy thật — Evidence Board dẫn thẳng tới đây |
 | `gen_diagram.py` | **Sinh class diagram tự động từ `schema.sql`** → sơ đồ không lệch SQL |
@@ -52,7 +52,7 @@ Bộ phản biện có thêm nhóm ca thử nhắm vào chính các bản sửa 
 
 | Mức | Mã | Vấn đề | Sửa | Kiểm tra |
 |---|---|---|---|---|
-| Cao (QR) | RV7 | Thêm đầu vào vào sự kiện đóng chai 3 tháng sau → tỷ trọng nguồn trên QR đổi hồi tố. Lô chai là lô cuối chuỗi nên lọt quy tắc "đã dùng tiếp" | Đầu vào phải ghi cùng ngày ghi sự kiện; bổ sung sau đó chỉ khi kết luận hiệu lực là `rejected` | W9 |
+| Cao (QR) | RV7 | Thêm đầu vào vào sự kiện đóng chai 3 tháng sau → tỷ trọng nguồn trên QR đổi hồi tố. Lô chai là lô cuối chuỗi nên lọt quy tắc "đã dùng tiếp" | Đầu vào phải ghi cùng ngày ghi sự kiện; bổ sung sau đó chỉ khi kết luận hiệu lực là `rejected`. **Giới hạn:** quy tắc so hai giá trị `recorded_at` do client gửi lên, nên client ghi lùi ngày là vượt được (mục 8 dòng 19) | W9 |
 | Cao (QR) | RV12 | Sửa tên/tỉnh/xã hộ, toạ độ/mã vùng trồng của lô đất đã sinh lô → trang QR đổi theo, không lịch sử | Khóa các trường này khi lô đất đã sinh lô thu hoạch; trước đó vẫn sửa được | W12–W14 |
 | Cao (QR) | RV13 | Mốc `lot_created` lấy giờ nạp → đứng trước cả hoạt động canh tác | Lấy thời điểm sự kiện / hoạt động thu hoạch tạo lô; thêm `kind_rank` để sắp khi trùng giờ | W15, W16, V6 |
 | Cao | RV1, RV2 | Thêm yêu cầu minh chứng / loại hoạt động vào crop profile đang dùng → chu kỳ đã đóng đổi kết luận hồi tố | Crop profile đã có chu kỳ thì không thêm giai đoạn / loại hoạt động / yêu cầu minh chứng → tạo phiên bản mới | W1–W3 |
@@ -63,6 +63,8 @@ Bộ phản biện có thêm nhóm ca thử nhắm vào chính các bản sửa 
 | Thấp | RV10 | Cùng file, sha256 khác hoa/thường đếm thành 2 | Đếm theo `LOWER(sha256)`. Không thêm CHECK định dạng vì bộ mock dùng sha giả; kiểm định dạng ở tầng ứng dụng | W10 |
 | Thấp | P8 | Timeline lọc số đo bằng so chuỗi → phụ thuộc `DateStyle` của phiên PostgreSQL | So bằng kiểu ngày; view chuyển sang `gen_views.py` | P8 (review pg) |
 | — | RV5, RV8 | Đóng chu kỳ nhầm ngày; SQLite không phân biệt `INSERT OR IGNORE` với `INSERT` | **Ghi giới hạn** (mục 8 dòng 7b, 16) | — |
+| Cao (QR) | RV14 *(nhóm tự phát hiện)* | Thêm yêu cầu minh chứng cho loại sự kiện `packaging` → `lot_b80`, `lot_b250` (đã in QR) đổi từ `complete` sang `incomplete`. `f_config_in_use` chỉ khóa yêu cầu có `activity_type_id`; yêu cầu theo `lot_event_type` không gắn crop profile nên lọt | **Ghi giới hạn** (mục 8 dòng 7c); sửa cùng đợt trang QR | RV14 (review) |
+| TB | RV15 *(nhóm tự phát hiện)* | Thêm luật cách ly cho cặp (thuốc, cây) đang thiếu sau khi vụ đã thu hoạch → kết luận PHI đổi hồi tố, không có dấu vết thời điểm thêm | **Ghi giới hạn** (mục 8 dòng 20); sửa cùng đợt trang QR | RV15 (review) |
 
 Fixture phải đổi theo khóa cấu hình: N17 và C13 (`smoke_test`), nhóm G (`review_tests`) trước đây thêm loại hoạt động vào profile đang có chu kỳ cho tiện; nay tạo cùng phần cấu hình, hoặc dùng profile chưa có chu kỳ. Ý đồ ca thử giữ nguyên.
 
@@ -430,7 +432,7 @@ Trang QR là **bắt buộc** cho ĐACN. Thứ tự làm, vì trang đọc từ 
 |---|---|---|---|---|
 | Kịch bản K1–K6 (minh chứng E3, E4) | `python run_scenarios.py lac [--pg]` | 6/6 | 6/6 | `db/logs/k1_k6_sqlite.txt`, `k1_k6_postgres.txt`, `k1_k6_sqlite_raw.txt` (kèm SQL + dữ liệu thô) |
 | Hồi quy schema | `python smoke_test.py sqlite\|postgres` | 103/103 | 103/103 | `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
-| Ca phản biện độc lập (phát hiện / đứng vững) | `python ../review/review_tests.py [pg]` | 4 / 48 | 4 / 57 | `db/logs/review_sqlite.txt`, `review_postgres.txt` — 0 chưa xử lý; 4 phát hiện còn lại (G2, G4, RV5, RV8) là giới hạn đã ghi ở mục 8 |
+| Ca phản biện độc lập (phát hiện / đứng vững) | `python ../review/review_tests.py [pg]` | 6 / 48 | 6 / 57 | `db/logs/review_sqlite.txt`, `review_postgres.txt` — 0 chưa xử lý; 6 phát hiện còn lại (G2, G4, RV5, RV8, RV14, RV15) là giới hạn đã ghi ở mục 8 |
 
 **K6 duy nhất** là hộ D trong `run_scenarios.py` / `seed_lac.sql` (gieo → bón lót → phun → thu hoạch → rang → vận chuyển → đóng gói → truy ngược QR-LAC-200). `F15` (hộ E) trong `smoke_test.py` chỉ là hồi quy cấu hình lạc, không dùng làm bằng chứng K6.
 
@@ -457,7 +459,7 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 | 6 | Hoạt động lặp không biết trước số lần | Loại `conditional`, không tính vào độ đầy đủ | Luật tần suất (ĐATN) |
 | 7 | `not_due` so với ngày hiện tại | Chỉ khi chu kỳ còn mở; đã đóng thì chưa ghi = thiếu | — |
 | 7b | Đóng chu kỳ nhầm ngày | Không sửa được (chỉ đóng một lần) | Bảng đính chính có lý do như `cycle_anchor` nếu thực tế cần |
-| 7c | Thêm yêu cầu minh chứng cho **loại sự kiện lô** áp dụng hồi tố cho sự kiện cũ | Yêu cầu theo loại hoạt động đi theo phiên bản crop profile; theo loại sự kiện thì chưa có phiên bản | Gắn hiệu lực từ ngày (`valid_from`) |
+| 7c | **[Cao, QR — RV14]** Thêm yêu cầu minh chứng cho **loại sự kiện lô** áp dụng hồi tố cho sự kiện cũ | Yêu cầu theo loại hoạt động đi theo phiên bản crop profile (RV1). Yêu cầu theo loại sự kiện không gắn crop profile nên lọt khóa `f_config_in_use`: thêm yêu cầu ảnh cho `packaging` làm `lot_b80`, `lot_b250` (đã in QR) đổi `chain_evidence_state` từ `complete` sang `incomplete`. Hồi quy V2 hiện đang dùng chính cách thêm hồi tố này | Cùng đợt trang QR: thêm `valid_from` cho `evidence_requirement`; `v_lot_event_status` chỉ áp yêu cầu có `valid_from` ≤ ngày ghi sự kiện; viết lại V2. Vẫn phụ thuộc dòng 19 |
 | 7d | Chu kỳ thu hoạch nhiều đợt (G2); hai chu kỳ chồng nhau trên một lô đất (G4) | Timeline lô thu hoạch đợt 1 hiện cả hoạt động sau đợt 1; số đo có thể tính cho cả hai chu kỳ | Cắt timeline theo ngày thu hoạch; ràng buộc không chồng chu kỳ (ĐATN) |
 | 7e | Hiệu năng view tính cho mọi lô | Agent đo v0.4: `v_lot_status` 1,5 s ở 200 hộ/2.000 lô, CTE gieo một lô 0,4 ms | Trang QR dùng truy vấn tham số hóa cho một lô |
 | 8 | Luật cách ly và yêu cầu minh chứng đang là giả định | `is_assumption = 1` | **Đối chiếu nhãn thuốc thật** |
@@ -471,11 +473,12 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 | 16 | Nạp lại dữ liệu trùng (RV8) | SQLite: trigger chặn ghi đè không phân biệt được `INSERT OR IGNORE` / `ON CONFLICT DO NOTHING` với `INSERT` thường → cả hai đều báo lỗi; PostgreSQL thì `ON CONFLICT DO NOTHING` chạy được. ĐACN chỉ dùng mock, không có import | Import viết `INSERT … SELECT … WHERE NOT EXISTS` (chạy giống nhau trên hai hệ) |
 | 17 | Đầu vào ghi SAI (không phải thiếu) của sự kiện lô | Chỉ ghi thêm nên không xóa được dòng sai; RV6 chỉ cho bổ sung khi bị từ chối. Làm lại = lô mới + sự kiện mới; lô cũ không có dấu "đã thay thế", và đầu vào bị đếm hai lần ở `over_consumption` | Bảng `lot_supersession` (lô cũ → lô mới, lý do) + loại lô đã thay thế khỏi `over_consumption` + QR mã cũ chỉ sang mã mới (ĐATN) |
 | 18 | Thông tin hộ / lô đất sai sau khi đã sinh lô (RV12) | Bị khóa, chưa có cách đính chính | Bảng lịch sử thông tin hộ / lô đất có lý do (ĐATN) |
-| 19 | `recorded_at` do client gửi | Quy tắc RV7 dựa vào `recorded_at`; client có thể gửi giờ giả | Dịch vụ trung tâm (SD-06) tự đặt `recorded_at` |
+| 19 | `recorded_at` do client gửi | Quy tắc RV7 so `lot_input.recorded_at` với `lot_event.recorded_at`, cả hai do client gửi lên. Chỉ cần gửi `lot_input.recorded_at` trùng ngày ghi sự kiện là thêm được đầu vào hồi tố vào lô chai đã in QR. Cách sửa dòng 7c cũng dựa vào giá trị này | Dịch vụ trung tâm (SD-06) tự đặt `recorded_at`, không nhận từ client |
+| 20 | **[TB — RV15]** Thêm luật cách ly sau khi vụ đã thu hoạch | `material_crop_rule` đã chặn UPDATE/DELETE nhưng vẫn cho INSERT, vì luật gắn theo `crop_code` chứ không theo phiên bản profile. Cặp (thuốc, cây) chưa có luật thì đang báo `missing_phi_rule`; thêm luật sẽ chuyển kết luận PHI của vụ đã xong (ví dụ thuốc Y cho mè: `v_phi_violations` từ 1 lên 2). Thêm luật cho cặp đang thiếu là quy trình đã định (dòng 8), nên vấn đề thật là: (a) không biết luật được thêm khi nào, trang QR không phân biệt được luật có trước hay sau thu hoạch; (b) thêm một luật lỏng (`phi_days = 0`) làm mất cảnh báo "thiếu luật" mà không hiện vi phạm, rồi không sửa lại được | Cùng đợt trang QR: thêm `recorded_at`, `recorded_by` vào `material_crop_rule`; `v_phi_violations` và `missing_phi_rule` thêm cờ "luật bổ sung sau thu hoạch" để trang QR hiển thị. Sửa nhãn thuốc: đưa `valid_from` vào khóa chính |
 
 ## 9. Việc tiếp theo
 - ✅ Việc 2: kịch bản K1–K6 → E3, E4 (6/6 trên SQLite và PostgreSQL, 28/11).
-- Ngay sau 29/11, theo thứ tự (mục 6D): `v_activity_display_state` (SD-13) → `evidence_link_retraction` (SD-10) → truy vấn tham số hóa một lô và đo thời gian → **trang QR** (SD-14, bắt buộc).
+- Ngay sau 29/11, theo thứ tự (mục 6D): `v_activity_display_state` (SD-13) → `evidence_link_retraction` (SD-10) → truy vấn tham số hóa một lô và đo thời gian → **trang QR** (SD-14, bắt buộc). Cùng đợt: sửa RV14 (mục 8 dòng 7c) vì ảnh hưởng trực tiếp trạng thái chuỗi hiển thị trên QR, và RV15 (dòng 20).
 - Việc 1: bộ mock mè đủ 11 bước theo quy trình Bình Thuận (hiện `seed_me.sql` có 3 loại hoạt động).
 - Đối chiếu nhãn thuốc thật cho luật cách ly; hỏi thầy dung sai ngày (`tolerance_days`).
 - Khi rà thiết kế trước triển khai đa tổ chức: xem lại SD-08.

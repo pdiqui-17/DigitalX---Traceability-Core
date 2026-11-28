@@ -131,10 +131,16 @@ L · Mốc lịch
               → farm UPDATE ok=False, plot UPDATE ok=False; không có lịch sử
   [OK       ] RV13: mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó
               → lot_created at=2027-02-22 (vị trí 16) trước cả hoạt động canh tác; đóng chai at=2027-02-22 (vị trí 15) — dữ liệu import/backfill sẽ dồn về ngày nạp
+  [PHÁT HIỆN] RV14: thêm yêu cầu minh chứng cho loại sự kiện 'packaging' làm đổi trạng thái chai ĐÃ IN QR
+              → INSERT ok=True; [('b250', 'complete'), ('b80', 'complete')] → [('b250', 'incomplete'), ('b80', 'incomplete')]
+  [PHÁT HIỆN] RV15: thêm luật cách ly (phi_days=0) cho thuốc đã phun sau khi vụ thu hoạch: cảnh báo 'thiếu luật' biến mất, không vi phạm, không dấu vết
+              → INSERT ok=True; (vi phạm, thiếu luật): (0, 1) → (0, 0); luật không có recorded_at
 
-Tổng: 4 phát hiện (0 chưa xử lý, 4 đã ghi giới hạn), 48 ca đứng vững
+Tổng: 6 phát hiện (0 chưa xử lý, 6 đã ghi giới hạn), 48 ca đứng vững
 Chưa xử lý: —
 Đã ghi giới hạn: G2 — mục 8 dòng 7d — thu hoạch nhiều đợt (ĐATN)
 Đã ghi giới hạn: G4 — mục 8 dòng 7d — hai chu kỳ chồng nhau trên một lô đất (ĐATN)
 Đã ghi giới hạn: RV5 — mục 8 dòng 7b — đóng chu kỳ nhầm ngày chưa đính chính được
 Đã ghi giới hạn: RV8 — mục 8 dòng 16 — SQLite không phân biệt INSERT OR IGNORE với INSERT; nạp lại dùng INSERT … WHERE NOT EXISTS
+Đã ghi giới hạn: RV14 — mục 8 dòng 7c — yêu cầu minh chứng theo loại sự kiện lô chưa có hiệu lực theo ngày (sửa cùng đợt trang QR)
+Đã ghi giới hạn: RV15 — mục 8 dòng 20 — luật cách ly không ghi thời điểm thêm (sửa cùng đợt trang QR)

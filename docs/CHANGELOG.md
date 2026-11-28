@@ -18,7 +18,7 @@ Kiểm tra: <số đạt>/<tổng> trên SQLite và PostgreSQL
 ---
 
 ## [v0.5.1] — 2026-11-28 — nhóm chốt sổ quyết định SD-01…SD-18; ghi nhận họp với thầy (QR bắt buộc)
-Kiểm tra: smoke_test **103/103** (87 + W1–W16) và K1–K6 6/6, trên SQLite và PostgreSQL 18; `review_tests` 0 phát hiện chưa xử lý (4 giới hạn đã ghi) — log ở `db/logs/`. Bảng không đổi; thêm 4 trigger; `v_lot_timeline` chuyển sang `views_<hệ>.sql` và thêm cột `kind_rank`.
+Kiểm tra: smoke_test **103/103** (87 + W1–W16) và K1–K6 6/6, trên SQLite và PostgreSQL 18; `review_tests` 0 phát hiện chưa xử lý (6 giới hạn đã ghi: SQLite 6 / 48, PostgreSQL 6 / 57) — log ở `db/logs/`. Bảng không đổi; thêm 4 trigger; `v_lot_timeline` chuyển sang `views_<hệ>.sql` và thêm cột `kind_rank`.
 ### Sửa lỗi
 - K6 trước đây có hai bản: `F15` (hộ E, chỉ tới lô thu hoạch) và hộ D trong `run_scenarios.py`. Chốt **hộ D là bằng chứng K6 duy nhất**; `F15` giữ làm hồi quy cấu hình.
 - `smoke_test.py postgres` không chạy được trên Windows (`pg_load.sh` dùng đường dẫn Linux). Thay bằng `db/dbtools.py`: kết nối qua `psql`, cấu hình ở `db/.env` (mẫu `.env.example`), database kiểm thử `*_test` bị xóa và tạo lại mỗi lần chạy. `F15` không còn dùng `sqlite_master`.
@@ -40,7 +40,9 @@ Kiểm tra: smoke_test **103/103** (87 + W1–W16) và K1–K6 6/6, trên SQLite
 ### Hoãn / giới hạn
 - `v_activity_display_state` (SD-13) và `evidence_link_retraction` (SD-10): mới thiết kế, cài đặt ngay sau 29/11, trước trang QR.
 - `docs/diagrams/qr_sequence.png` chưa xuất (máy chưa có `mmdc`); GitHub hiển thị khối Mermaid trong D1_D2 mục 6C.
-- Ghi giới hạn (D1_D2 mục 8): RV5 đóng nhầm ngày (dòng 7b); RV8 nạp lại dữ liệu trùng trên SQLite (dòng 16); đầu vào ghi SAI cần `lot_supersession` (dòng 17); đính chính thông tin hộ / lô đất (dòng 18); `recorded_at` do client gửi (dòng 19).
+- Ghi giới hạn (D1_D2 mục 8): RV5 đóng nhầm ngày (dòng 7b); RV8 nạp lại dữ liệu trùng trên SQLite (dòng 16); đầu vào ghi SAI cần `lot_supersession` (dòng 17); đính chính thông tin hộ / lô đất (dòng 18); `recorded_at` do client gửi (dòng 19; nói rõ là ghi lùi ngày thì vượt được quy tắc RV7).
+- **Nhóm tự phát hiện (28/11), ghi giới hạn, sửa cùng đợt trang QR:** **[Cao, QR] RV14**: thêm yêu cầu minh chứng theo loại sự kiện lô làm chai đã in QR đổi `complete` thành `incomplete`, do `f_config_in_use` chỉ khóa yêu cầu theo loại hoạt động (mục 8 dòng 7c, hướng sửa `valid_from`). **[TB] RV15**: thêm luật cách ly sau thu hoạch đổi kết luận PHI, không có dấu vết thời điểm thêm (dòng 20, hướng sửa `recorded_at` + cờ hiển thị). Có ca tái hiện trong `review/review_tests.py`.
+- Đính chính: README mục 2 và bảng file ở D1_D2 còn ghi "87 kiểm tra" → 103.
 ### Còn mở
 - Dung sai ngày `tolerance_days` (hỏi thầy / F&S).
 

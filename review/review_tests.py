@@ -20,6 +20,8 @@ KNOWN_LIMITS = {
     "G4": "mục 8 dòng 7d — hai chu kỳ chồng nhau trên một lô đất (ĐATN)",
     "RV5": "mục 8 dòng 7b — đóng chu kỳ nhầm ngày chưa đính chính được",
     "RV8": "mục 8 dòng 16 — SQLite không phân biệt INSERT OR IGNORE với INSERT; nạp lại dùng INSERT … WHERE NOT EXISTS",
+    "RV14": "mục 8 dòng 7c — yêu cầu minh chứng theo loại sự kiện lô chưa có hiệu lực theo ngày (sửa cùng đợt trang QR)",
+    "RV15": "mục 8 dòng 20 — luật cách ly không ghi thời điểm thêm (sửa cùng đợt trang QR)",
 }
 T = "2026-11-25T08:00:00"
 findings, oks = [], []
@@ -468,6 +470,27 @@ def run_new_v05():
     pos = [i for i, r in enumerate(tl) if r[2] == "b80_r1"][0]; pev = [i for i, r in enumerate(tl) if r[2] == "e_b80"][0]
     report("RV13", pos >= pev, "mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó",
            f"lot_created at={tl[pos][0]} (vị trí {pos}) trước cả hoạt động canh tác; đóng chai at={tl[pev][0]} (vị trí {pev}) — dữ liệu import/backfill sẽ dồn về ngày nạp")
+    # RV14 (nhóm tự phát hiện, 28/11): cùng loại RV1 nhưng yêu cầu theo LOẠI SỰ KIỆN LÔ — không gắn crop profile nên lọt f_config_in_use
+    db = SQLiteDB(base_fixture())
+    sel = "SELECT lot_id, chain_evidence_state FROM v_lot_status WHERE lot_id IN ('b80','b250') ORDER BY 1"
+    b = db.x(sel)
+    ok = db.ok("INSERT INTO evidence_requirement VALUES ('er_pack',NULL,'packaging','photo',1,'luật mới 2027',0)")[0]
+    a = db.x(sel)
+    report("RV14", not ok or a == b, "thêm yêu cầu minh chứng cho loại sự kiện 'packaging' làm đổi trạng thái chai ĐÃ IN QR",
+           f"INSERT ok={ok}; {b} → {a}")
+    # RV15 (nhóm tự phát hiện, 28/11): luật cách ly thêm SAU thu hoạch đổi kết luận PHI, không để lại dấu thời điểm thêm
+    f = base_fixture()
+    f.ins("input_material", "m_y", "pesticide", "Thuốc Y", None, None, "l")
+    f.act("ph1", "c1", "at_ph", "u1", "2027-02-05", [("m_y", 1, "l")])   # phun 5 ngày trước thu hoạch 10/02, chưa có luật cho mè
+    f.evid("photo", "activity_revision_id", "ph1_r1")
+    db = SQLiteDB(f)
+    cnt = ("SELECT (SELECT COUNT(*) FROM v_phi_violations),"
+           " (SELECT COUNT(*) FROM v_integrity_issues WHERE issue='missing_phi_rule')")
+    b = db.one(cnt)
+    ok = db.ok("INSERT INTO material_crop_rule VALUES ('m_y','SESAME',0,'bổ sung sau thu hoạch',1)")[0]   # luật lỏng
+    a = db.one(cnt)
+    report("RV15", not ok or a == b, "thêm luật cách ly (phi_days=0) cho thuốc đã phun sau khi vụ thu hoạch: cảnh báo 'thiếu luật' biến mất, không vi phạm, không dấu vết",
+           f"INSERT ok={ok}; (vi phạm, thiếu luật): {tuple(b)} → {tuple(a)}; luật không có recorded_at")
 
 
 def run_pg():

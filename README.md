@@ -29,7 +29,7 @@ python run_scenarios.py            # chỉ mè: K1–K5
 Output in ra bảng có ✅/❌. Dùng `--raw` để xem nguyên văn câu SQL và từng dòng dữ liệu thật do DB trả về.  
 Xem giải thích luồng K6 tại [`docs/K6_lac_test_flow.md`](docs/K6_lac_test_flow.md).
 
-### 2. Bộ kiểm tra hồi quy đầy đủ (87 kiểm tra)
+### 2. Bộ kiểm tra hồi quy đầy đủ (103 kiểm tra)
 
 ```bash
 cd db
@@ -37,7 +37,7 @@ python smoke_test.py sqlite      # SQLite ≥ 3.35, không cần cài thêm
 python smoke_test.py postgres    # PostgreSQL (xem mục "Cấu hình PostgreSQL")
 ```
 
-Mỗi dòng in `[ĐẠT]` hoặc `[LỖI]` kèm chi tiết. Dòng cuối tổng kết `x/87 đạt`. Bộ này giữ các kiểm tra mà sổ quyết định trích dẫn cho tiêu chí O1/O2 (F1–F7, R1, R4, N1, N2, N9, N17, V9, V10, C1, C6…).
+Mỗi dòng in `[ĐẠT]` hoặc `[LỖI]` kèm chi tiết. Dòng cuối tổng kết `x/103 đạt`. Bộ này giữ các kiểm tra mà sổ quyết định trích dẫn cho tiêu chí O1/O2 (F1–F7, R1, R4, N1, N2, N9, N17, V9, V10, C1, C6…).
 
 ### 3. Xem trực tiếp dữ liệu thô từ SQLite CLI (100% không qua Python)
 
@@ -76,9 +76,9 @@ Kết quả hiện tại (28/11/2026), log ở [`db/logs/`](db/logs/):
 |---|---|---|
 | Kịch bản K1–K6 (`run_scenarios.py lac`) | 6/6 | 6/6 |
 | Hồi quy (`smoke_test.py`) | 103/103 | 103/103 |
-| Ca phản biện độc lập (`review/review_tests.py [pg]`) — phát hiện / đứng vững | 4 / 48 | 4 / 57 (thêm 9 ca trigger PG) |
+| Ca phản biện độc lập (`review/review_tests.py [pg]`) — phát hiện / đứng vững | 6 / 48 | 6 / 57 (thêm 9 ca trigger PG) |
 
-4 phát hiện còn lại của bộ phản biện (G2, G4, RV5, RV8) là giới hạn đã ghi trong `docs/D1_D2_schema_design.md` mục 8; script in riêng chúng ở dòng "Đã ghi giới hạn".
+6 phát hiện còn lại của bộ phản biện (G2, G4, RV5, RV8; RV14, RV15 do nhóm tự phát hiện) là giới hạn đã ghi trong `docs/D1_D2_schema_design.md` mục 8; script in riêng chúng ở dòng "Đã ghi giới hạn".
 
 ## Thứ tự nạp schema
 
