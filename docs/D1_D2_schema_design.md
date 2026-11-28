@@ -3,7 +3,7 @@
 > Đề tài #6 · ĐACN · chuỗi mè → dầu mè · 25/11/2026
 > Trạng thái: bản để nhóm và bên đánh giá phản biện.
 > Cập nhật 28/11/2026: thêm mục 6A–6D (định nghĩa độ đầy đủ, nhãn hiển thị, rút lại liên kết, dạng của lõi, danh sách API, sơ đồ tuần tự QR) theo sổ quyết định `Project_Scope_Decision.txt` (SD-06, SD-07, SD-10, SD-12, SD-13, SD-14).
-> **Đã kiểm (28/11):** 87 kiểm tra hồi quy (`smoke_test.py`) **87/87 đạt** và 6 kịch bản K1–K6 (`run_scenarios.py`) **6/6 đạt**, trên cả **SQLite** và **PostgreSQL 18** — log ở `db/logs/`. (v0.5 trước đó đã chạy 87/87 trên SQLite 3.53 và PostgreSQL 16.) Ngoài ra một agent đánh giá độc lập (không viết schema) chạy bộ ca thử phá riêng — xem mục 0. Mỗi ca "bị chặn" phải khớp đúng loại lỗi mong đợi (CHECK / UNIQUE / khóa ngoại / thông báo của trigger) — tránh đạt giả do sai số cột hay sai cú pháp.
+> **Đã kiểm (28/11):** 103 kiểm tra hồi quy (`smoke_test.py`) **103/103 đạt** và 6 kịch bản K1–K6 (`run_scenarios.py`) **6/6 đạt**, trên cả **SQLite** và **PostgreSQL 18** — log ở `db/logs/`. (v0.5 trước đó đã chạy 87/87 trên SQLite 3.53 và PostgreSQL 16; v0.5.1 thêm W1–W16 cho các phát hiện RV, mục 0a.) Ngoài ra một agent đánh giá độc lập (không viết schema) chạy bộ ca thử phá riêng — xem mục 0. Mỗi ca "bị chặn" phải khớp đúng loại lỗi mong đợi (CHECK / UNIQUE / khóa ngoại / thông báo của trigger) — tránh đạt giả do sai số cột hay sai cú pháp.
 
 ## Các file
 
@@ -45,6 +45,26 @@ v0.4 đạt 57/57 nhưng bộ kiểm tra do chính người thiết kế viết.
 | Thấp | H2–H4 | Lô từ chu kỳ chưa có mốc gieo lẫn với "thiếu"; lô mồ côi báo `no_post_harvest_events`; mốc không có yêu cầu minh chứng báo `complete` | `undetermined_share`; `no_source_event`; `not_required` | N25–N27 |
 | Thấp | G1, G3, G5, G8 | Timeline thiếu xác minh/sửa bản ghi lô; số đo trong ngày đóng bị loại; xác minh của bản ghi cũ trình bày như hiện hành | Timeline thêm `lot_revision` (tạo/sửa) và xác minh bản ghi lô; so số đo ở mức ngày; nhãn `(bản ghi cũ)` | N28–N30 |
 | — | G2, G4 | Chu kỳ thu hoạch nhiều đợt; hai chu kỳ chồng nhau trên một lô đất | **Hoãn, ghi giới hạn** (mục 8) | — |
+
+## 0a. Thay đổi v0.5.1 (đánh giá độc lập chạy lại trên v0.5)
+
+Bộ phản biện có thêm nhóm ca thử nhắm vào chính các bản sửa v0.5 (`run_new_v05` trong `review/review_tests.py`). Nhóm này trước ghi mã N1–N13, trùng mã N1–N30 của `smoke_test.py` mà E4 đang dẫn, nên đổi thành **RV1–RV13**. Kết quả trước khi sửa: 11 phát hiện chưa ai phân loại. Thêm P8 lộ ra khi `review_tests.py pg` chạy được trên Windows.
+
+| Mức | Mã | Vấn đề | Sửa | Kiểm tra |
+|---|---|---|---|---|
+| Cao (QR) | RV7 | Thêm đầu vào vào sự kiện đóng chai 3 tháng sau → tỷ trọng nguồn trên QR đổi hồi tố. Lô chai là lô cuối chuỗi nên lọt quy tắc "đã dùng tiếp" | Đầu vào phải ghi cùng ngày ghi sự kiện; bổ sung sau đó chỉ khi kết luận hiệu lực là `rejected` | W9 |
+| Cao (QR) | RV12 | Sửa tên/tỉnh/xã hộ, toạ độ/mã vùng trồng của lô đất đã sinh lô → trang QR đổi theo, không lịch sử | Khóa các trường này khi lô đất đã sinh lô thu hoạch; trước đó vẫn sửa được | W12–W14 |
+| Cao (QR) | RV13 | Mốc `lot_created` lấy giờ nạp → đứng trước cả hoạt động canh tác | Lấy thời điểm sự kiện / hoạt động thu hoạch tạo lô; thêm `kind_rank` để sắp khi trùng giờ | W15, W16, V6 |
+| Cao | RV1, RV2 | Thêm yêu cầu minh chứng / loại hoạt động vào crop profile đang dùng → chu kỳ đã đóng đổi kết luận hồi tố | Crop profile đã có chu kỳ thì không thêm giai đoạn / loại hoạt động / yêu cầu minh chứng → tạo phiên bản mới | W1–W3 |
+| TB | RV3 | Chu kỳ đã đóng vẫn nhận bản ghi có ngày làm sau ngày đóng | Trigger chặn; ghi muộn việc làm trước ngày đóng vẫn được | W4, W5 |
+| TB | RV4 | Không đóng được chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau ngày đóng | Chỉ xét bản ghi hiện hành | W6 |
+| TB | RV6 | Sự kiện bị từ chối vì thiếu đầu vào thì không bổ sung được (trigger khóa khi có BẤT KỲ lần xác minh nào) | Chỉ khóa khi kết luận hiệu lực là `verified`. Dấu vết: ghi chú từ chối → `lot_input.recorded_by/at` → `supersede_reason` của lần xác minh lại | W7, W8 |
+| TB | RV11 | Lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh không làm chu kỳ chưa đủ | `n_other_problem` đếm mọi hoạt động có vấn đề chưa được xét ở `v_cycle_expected` | W11 |
+| Thấp | RV10 | Cùng file, sha256 khác hoa/thường đếm thành 2 | Đếm theo `LOWER(sha256)`. Không thêm CHECK định dạng vì bộ mock dùng sha giả; kiểm định dạng ở tầng ứng dụng | W10 |
+| Thấp | P8 | Timeline lọc số đo bằng so chuỗi → phụ thuộc `DateStyle` của phiên PostgreSQL | So bằng kiểu ngày; view chuyển sang `gen_views.py` | P8 (review pg) |
+| — | RV5, RV8 | Đóng chu kỳ nhầm ngày; SQLite không phân biệt `INSERT OR IGNORE` với `INSERT` | **Ghi giới hạn** (mục 8 dòng 7b, 16) | — |
+
+Fixture phải đổi theo khóa cấu hình: N17 và C13 (`smoke_test`), nhóm G (`review_tests`) trước đây thêm loại hoạt động vào profile đang có chu kỳ cho tiện; nay tạo cùng phần cấu hình, hoặc dùng profile chưa có chu kỳ. Ý đồ ca thử giữ nguyên.
 
 **Cách làm để không sửa lệch giữa hai hệ:** trigger và view theo hệ giờ sinh từ một nguồn (`gen_triggers.py`, `gen_views.py`); sửa nguồn rồi chạy lại, không sửa tay file `.sql` sinh ra.
 
@@ -223,7 +243,7 @@ Công khai `province`, `commune` (từ 7/2025 không còn cấp huyện); riêng
 `season` thuộc một tổ chức (vd chương trình Đông Xuân của F&S), có cây trồng và khoảng thời gian; `cultivation_cycle` là một lô đất trong vụ đó. Tách hai khái niệm để: hỏi được "toàn bộ vụ Đông Xuân" bằng khóa ngoại; cây lâu năm vẫn có chu kỳ mà không cần vụ.
 
 ### QĐ19. Digital timeline là một view dùng chung → đề bài *(mới ở v0.4)*
-`v_lot_timeline(root_lot_id, at, time_precision, kind, ref_id, detail, actor_id, evidence_state, verification_state, source_channel)`. Một nguồn duy nhất cho mọi màn hình — nếu mỗi API tự ghép, các màn hình sẽ lệch nhau. Số đo cảm biến chỉ lấy tại lô đất nguồn và trong khoảng thời gian của chu kỳ.
+`v_lot_timeline(root_lot_id, at, time_precision, kind, ref_id, detail, actor_id, evidence_state, verification_state, source_channel, kind_rank)`. Sắp xếp: `ORDER BY at, kind_rank` (v0.5.1). Mốc `lot_created` lấy thời điểm của sự kiện / hoạt động thu hoạch tạo ra lô, không lấy giờ nạp dữ liệu. Một nguồn duy nhất cho mọi màn hình — nếu mỗi API tự ghép, các màn hình sẽ lệch nhau. Số đo cảm biến chỉ lấy tại lô đất nguồn và trong khoảng thời gian của chu kỳ.
 
 ### QĐ20. Kênh nguồn và mã ngoài → mapping dữ liệu hiện có *(mới ở v0.4)*
 Mỗi bản ghi nhập vào biết đến từ đâu (`source_channel`) và mã của nó ở hệ thống cũ (`external_ref`). UNIQUE (kênh, mã ngoài) để import chạy lại nhiều lần mà không nạp trùng.
@@ -404,13 +424,13 @@ Trang QR là **bắt buộc** cho ĐACN. Thứ tự làm, vì trang đọc từ 
 
 **Đạt khi:** quét mã QR thật trên dữ liệu mock → màn tóm tắt (đọc trong ~30 giây, vị trí đến cấp tỉnh/xã) → bấm xem từng hộ, từng hoạt động và nhãn trạng thái; ba nhánh lỗi ở 6C hiện đúng thông báo.
 
-## 7. Kết quả kiểm tra (87/87 hồi quy + K1–K6 6/6, trên SQLite và PostgreSQL)
+## 7. Kết quả kiểm tra (103/103 hồi quy + K1–K6 6/6, trên SQLite và PostgreSQL)
 
 | Bộ | Lệnh | SQLite | PostgreSQL 18 | Log |
 |---|---|---|---|---|
 | Kịch bản K1–K6 (minh chứng E3, E4) | `python run_scenarios.py lac [--pg]` | 6/6 | 6/6 | `db/logs/k1_k6_sqlite.txt`, `k1_k6_postgres.txt`, `k1_k6_sqlite_raw.txt` (kèm SQL + dữ liệu thô) |
-| Hồi quy schema | `python smoke_test.py sqlite\|postgres` | 87/87 | 87/87 | `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
-| Ca phản biện độc lập (phát hiện / đứng vững) | `python ../review/review_tests.py [pg]` | 14 / 38 | 14 / 47 | `db/logs/review_sqlite.txt`, `review_postgres.txt` |
+| Hồi quy schema | `python smoke_test.py sqlite\|postgres` | 103/103 | 103/103 | `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
+| Ca phản biện độc lập (phát hiện / đứng vững) | `python ../review/review_tests.py [pg]` | 4 / 48 | 4 / 57 | `db/logs/review_sqlite.txt`, `review_postgres.txt` — 0 chưa xử lý; 4 phát hiện còn lại (G2, G4, RV5, RV8) là giới hạn đã ghi ở mục 8 |
 
 **K6 duy nhất** là hộ D trong `run_scenarios.py` / `seed_lac.sql` (gieo → bón lót → phun → thu hoạch → rang → vận chuyển → đóng gói → truy ngược QR-LAC-200). `F15` (hộ E) trong `smoke_test.py` chỉ là hồi quy cấu hình lạc, không dùng làm bằng chứng K6.
 
@@ -448,6 +468,10 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 | 13 | Ánh xạ hai trục trạng thái ra nhãn | **Đã chốt quy tắc (SD-13, mục 6A.2):** 4 nhãn, xét từ trên xuống, một view trong lõi | Cài `v_activity_display_state` sau 29/11, trước trang QR |
 | 14 | Phân quyền ai được ghi / xác minh (SD-09) | Dữ liệu ghi rõ người làm / người ghi / người xác minh; trigger chặn tự xác minh bản ghi của mình (C4). Chưa có tài khoản, chưa kiểm soát ai gọi thao tác nào | ĐATN |
 | 15 | Loại lô / loại sự kiện lô cố định (SD-11) | `lot_type` (4 loại) và `event_type` (5 loại) cố định bằng CHECK; hoạt động canh tác thì mở rộng tự do bằng dữ liệu | Thêm loại mới phải sửa schema → ĐATN nếu cần |
+| 16 | Nạp lại dữ liệu trùng (RV8) | SQLite: trigger chặn ghi đè không phân biệt được `INSERT OR IGNORE` / `ON CONFLICT DO NOTHING` với `INSERT` thường → cả hai đều báo lỗi; PostgreSQL thì `ON CONFLICT DO NOTHING` chạy được. ĐACN chỉ dùng mock, không có import | Import viết `INSERT … SELECT … WHERE NOT EXISTS` (chạy giống nhau trên hai hệ) |
+| 17 | Đầu vào ghi SAI (không phải thiếu) của sự kiện lô | Chỉ ghi thêm nên không xóa được dòng sai; RV6 chỉ cho bổ sung khi bị từ chối. Làm lại = lô mới + sự kiện mới; lô cũ không có dấu "đã thay thế", và đầu vào bị đếm hai lần ở `over_consumption` | Bảng `lot_supersession` (lô cũ → lô mới, lý do) + loại lô đã thay thế khỏi `over_consumption` + QR mã cũ chỉ sang mã mới (ĐATN) |
+| 18 | Thông tin hộ / lô đất sai sau khi đã sinh lô (RV12) | Bị khóa, chưa có cách đính chính | Bảng lịch sử thông tin hộ / lô đất có lý do (ĐATN) |
+| 19 | `recorded_at` do client gửi | Quy tắc RV7 dựa vào `recorded_at`; client có thể gửi giờ giả | Dịch vụ trung tâm (SD-06) tự đặt `recorded_at` |
 
 ## 9. Việc tiếp theo
 - ✅ Việc 2: kịch bản K1–K6 → E3, E4 (6/6 trên SQLite và PostgreSQL, 28/11).

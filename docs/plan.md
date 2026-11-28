@@ -45,7 +45,7 @@
 | E2 · S1 | Khảo sát giải pháp, 8 giải pháp, 7 tiêu chí | Bản 4, mức **P**, **chưa kiểm thử trực tiếp** | Project: `claude/S1_khao_sat_giai_phap.md` |
 | D1/D2 | Thiết kế lõi, crop profile, luồng lô | **Schema v0.5, 4 vòng đánh giá.** 28/11: thêm định nghĩa độ đầy đủ, nhãn hiển thị, rút lại liên kết, dịch vụ trung tâm, **danh sách API (6B)**, **sơ đồ tuần tự QR (6C)**. Phân quyền: OUT (SD-09) | `docs/D1_D2_schema_design.md` mục 6A–6D; `docs/diagrams/qr_sequence.mmd` |
 | E3 · C1 | Kiểm thử đánh giá minh chứng: K3, K4, K5, K6 | **K3–K6 đạt trên SQLite và PostgreSQL 18** (28/11); mức P | `db/run_scenarios.py`; log `db/logs/k1_k6_sqlite.txt`, `k1_k6_postgres.txt` |
-| E4 · C2 | Kiểm thử truy xuất: K1, K2 + R1, N1, N2, F7 | **K1, K2 đạt; R1, N1, N2, F7 đạt** (87/87 hồi quy) trên SQLite và PostgreSQL 18; mức P | K1–K2: log như trên; R1, N1, N2, F7: `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
+| E4 · C2 | Kiểm thử truy xuất: K1, K2 + R1, N1, N2, F7 | **K1, K2 đạt; R1, N1, N2, F7 đạt** (103/103 hồi quy) trên SQLite và PostgreSQL 18; mức P | K1–K2: log như trên; R1, N1, N2, F7: `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
 | Trang QR | Điều kiện nghiệm thu (SD-14) | **Thiết kế xong** (API + sơ đồ tuần tự); trang **chưa có** | `docs/D1_D2_schema_design.md` mục 6B–6D |
 | Outline báo cáo | | **Chưa có** | — |
 | 2 slide DefenseBoard | | **Chưa có** | — |
@@ -74,7 +74,7 @@ Nguyên tắc: người không trực tiếp thiết kế là người đặt c�
 
 | Ngày | Việc | Xong khi |
 |---|---|---|
-| 28/11 ✅ | K1–K6: `run_scenarios.py` là bản chính, chạy được SQLite và PostgreSQL (`--pg`, cấu hình `db/.env`); `smoke_test.py` giữ làm bộ hồi quy 87 kiểm tra, cũng chạy được PostgreSQL trên Windows qua `db/dbtools.py` | ✅ 6/6 và 87/87 trên cả hai hệ |
+| 28/11 ✅ | K1–K6: `run_scenarios.py` là bản chính, chạy được SQLite và PostgreSQL (`--pg`, cấu hình `db/.env`); `smoke_test.py` giữ làm bộ hồi quy (87 kiểm tra, v0.5.1 thêm W1–W16 → 103), cũng chạy được PostgreSQL trên Windows qua `db/dbtools.py` | ✅ 6/6 và 103/103 trên cả hai hệ |
 | 28/11 ✅ | Log UTF-8 bằng `--log` (không qua PowerShell), lưu ở `db/logs/` để Evidence Board dẫn thẳng tới | ✅ 5 file log đọc được |
 | 28/11 ✅ | Một bản K6 duy nhất: hộ D trong `run_scenarios.py`; `F15` (hộ E) chỉ là hồi quy. Cập nhật `docs/K6_lac_test_flow.md` | ✅ |
 | 28/11 ✅ | `docs/D1_D2_schema_design.md`: mục 6A (SD-06, 07, 10, 12, 13), **6B danh sách API**, **6C sơ đồ tuần tự quét QR** (cả nhánh lỗi), 6D điều kiện nghiệm thu trang QR; sửa mục 6 (bỏ "11 bước", F15 → K6), mục 7, mục 8 dòng 10–15 | ✅ Tài liệu khớp code và sổ quyết định |

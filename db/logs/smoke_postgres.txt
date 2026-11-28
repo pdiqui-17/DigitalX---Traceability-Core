@@ -23,7 +23,7 @@ V · Bổ sung v0.4 (đánh giá vòng 3)
   [ĐẠT] V3 bổ sung ảnh ép dầu → chuỗi 'complete' — complete
   [ĐẠT] V4 QA từ chối sự kiện ép dầu → chuỗi 'rejected' — ('rejected', '1')
   [ĐẠT] V5 timeline QR-80 hợp nhất 6 loại (v0.5 thêm lot_revision) — 25 dòng: ['activity', 'cycle_anchor', 'lot_event', 'lot_revision', 'observation', 'verification']
-  [ĐẠT] V6 timeline sắp theo thời gian: bắt đầu từ mốc gieo, kết thúc ở đóng chai — đầu=('cycle_anchor', 'an_a1'), cuối=('lot_event', 'e_b80')
+  [ĐẠT] V6 timeline sắp theo thời gian: bắt đầu từ mốc gieo, kết thúc ở đóng chai rồi lô chai được tạo (v0.5.1: lot_created theo thời điểm nghiệp vụ) — đầu=('cycle_anchor', 'an_a1'), cuối=[('lot_event', 'e_b80'), ('lot_revision', 'b80_r1')]
   [ĐẠT] V7 vụ là thực thể: truy vấn mọi chu kỳ của vụ Đông Xuân — 4 chu kỳ
   [ĐẠT] V8 số đo ghi rõ kênh nguồn và mã ngoài — ('iot_gateway', 'GW-0001')
   [ĐẠT] V9 chiều đúng hạn tách riêng: chu kỳ A 100% đúng lịch — ('1.00000000000000000000', 'complete')
@@ -97,4 +97,22 @@ N · Hồi quy v0.5 (đánh giá độc lập vòng 4)
   [ĐẠT] N29 timeline có xác minh bản ghi lô và lần sửa lô — {'ver_lab': 'lot_revision', 'raw_r2': 'lot_corrected'}
   [ĐẠT] N30 xác minh của bản ghi cũ được ghi nhãn 'bản ghi cũ' — activity (bản ghi cũ)
 
-Tổng (postgres): 87/87 đạt
+W · Hồi quy v0.5.1 (phát hiện RV của đánh giá độc lập trên v0.5, review/review_tests.py)
+  [ĐẠT] W1 chặn: thêm yêu cầu minh chứng vào loại hoạt động của crop profile đang có chu kỳ (RV1) — cấu hình: crop profile đã có chu kỳ sử dụng, tạo phiên bản mới
+  [ĐẠT] W2 chặn: thêm loại hoạt động bắt buộc vào giai đoạn của crop profile đang có chu kỳ (RV2) — cấu hình: crop profile đã có chu kỳ sử dụng, tạo phiên bản mới
+  [ĐẠT] W3 đổi quy trình = phiên bản crop profile mới (v2) vẫn cấu hình được
+  [ĐẠT] W4 chặn: chu kỳ đã đóng 28/02 nhận bản sửa ngày thu hoạch 12/03 (RV3) — activity_revision: chu kỳ đã đóng, ngày làm sau closed_at
+  [ĐẠT] W5 chu kỳ đã đóng vẫn nhận ghi muộn việc làm TRƯỚC ngày đóng
+  [ĐẠT] W6 đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau ngày đóng (RV4)
+  [ĐẠT] W7 sự kiện bị từ chối vì thiếu đầu vào → được bổ sung (RV6)
+  [ĐẠT] W8 chặn: thêm đầu vào sau khi xác minh lại là 'verified' — lot_input: sự kiện đã được xác minh, không thêm đầu vào
+  [ĐẠT] W9 chặn: thêm đầu vào vào sự kiện đóng chai (lô cuối chuỗi) 3 tháng sau, khi QR đã lưu hành (RV7) — lot_input: ghi bổ sung sau ngày ghi sự kiện chỉ được khi sự kiện đang bị từ chối
+  [ĐẠT] W10 cần 2 ảnh, cùng file với sha256 viết hoa/thường → vẫn thiếu (RV10) — missing_evidence
+  [ĐẠT] W11 lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh làm chu kỳ chưa đủ (RV11) — n_other_problem 2 → 3, incomplete
+  [ĐẠT] W12 chặn: sửa toạ độ / mã vùng trồng của lô đất đã sinh lô thu hoạch (RV12) — plot: lô đất đã sinh lô thu hoạch, không sửa thông tin hiển thị trên QR
+  [ĐẠT] W13 chặn: sửa tên / tỉnh của hộ đã có lô thu hoạch (RV12) — farm: hộ đã có lô thu hoạch, không sửa thông tin hiển thị trên QR
+  [ĐẠT] W14 hộ / lô đất chưa sinh lô thu hoạch vẫn sửa được thông tin
+  [ĐẠT] W15 mốc 'lot_created' của lô thu hoạch H-A = ngày thu hoạch, không phải ngày nạp (RV13) — 2027-02-10 00:00:00
+  [ĐẠT] W16 mốc 'lot_created' của QR-80 = lúc đóng chai (RV13) — 2027-02-22 10:00:00
+
+Tổng (postgres): 103/103 đạt

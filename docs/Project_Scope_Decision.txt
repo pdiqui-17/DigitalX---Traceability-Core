@@ -320,7 +320,7 @@ D. MINH CHỨNG CHO ĐACN
                                         phun → thu hoạch → rang → vận chuyển → đóng gói →
                                         truy ngược). F15 (Hộ E) trong smoke_test
                                         chỉ là hồi quy cấu hình, không dùng làm K6.
-    Kết quả 28/11: K1–K6 6/6 đạt trên SQLite và PostgreSQL 18; smoke_test 87/87
+    Kết quả 28/11: K1–K6 6/6 đạt trên SQLite và PostgreSQL 18; smoke_test 103/103
     đạt trên cả hai. Log: db/logs/.
     Mức dự kiến: P (dữ liệu mock, 1 vụ, chưa thử dữ liệu thật).
   Ảnh hưởng tới: Evidence Board E3, E4 · plan.md Việc 2 · db/smoke_test.py

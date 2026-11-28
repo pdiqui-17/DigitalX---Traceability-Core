@@ -1,4 +1,4 @@
--- Trigger cho PostgreSQL (nạp sau schema.sql) — v0.5. SINH TỰ ĐỘNG bởi gen_triggers.py, đừng sửa tay.
+-- Trigger cho PostgreSQL (nạp sau schema.sql) — v0.5.1. SINH TỰ ĐỘNG bởi gen_triggers.py, đừng sửa tay.
 
 CREATE FUNCTION f_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION 'append-only: % không cho %', TG_TABLE_NAME, TG_OP; END $$;
@@ -61,7 +61,7 @@ BEGIN
   END IF;
   IF NEW.closed_at IS DISTINCT FROM OLD.closed_at THEN
     IF OLD.closed_at IS NOT NULL THEN RAISE EXCEPTION 'cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at'; END IF;
-    IF EXISTS (SELECT 1 FROM activity a JOIN activity_revision r ON r.activity_id = a.activity_id
+    IF EXISTS (SELECT 1 FROM activity a JOIN v_activity_current r ON r.activity_id = a.activity_id
                WHERE a.cycle_id = OLD.cycle_id AND r.performed_at::date > NEW.closed_at) THEN
       RAISE EXCEPTION 'cultivation_cycle: closed_at trước ngày hoạt động cuối của chu kỳ';
     END IF;
@@ -70,12 +70,46 @@ BEGIN
 END $$;
 CREATE TRIGGER trg_cycle_guard BEFORE UPDATE OR DELETE ON cultivation_cycle FOR EACH ROW EXECUTE FUNCTION f_cycle_guard();
 
+CREATE FUNCTION f_activity_revision_closed_cycle() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM activity a JOIN cultivation_cycle c ON c.cycle_id = a.cycle_id
+             WHERE a.activity_id = NEW.activity_id AND c.closed_at IS NOT NULL AND NEW.performed_at::date > c.closed_at) THEN
+    RAISE EXCEPTION 'activity_revision: chu kỳ đã đóng, ngày làm sau closed_at';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_activity_revision_closed_cycle BEFORE INSERT ON activity_revision FOR EACH ROW EXECUTE FUNCTION f_activity_revision_closed_cycle();
+
+CREATE FUNCTION f_config_in_use() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_profile TEXT;
+BEGIN
+  IF TG_TABLE_NAME = 'stage' THEN
+    v_profile := NEW.crop_profile_id;
+  ELSIF TG_TABLE_NAME = 'activity_type' THEN
+    SELECT s.crop_profile_id INTO v_profile FROM stage s WHERE s.stage_id = NEW.stage_id;
+  ELSIF NEW.activity_type_id IS NOT NULL THEN
+    SELECT s.crop_profile_id INTO v_profile FROM activity_type t JOIN stage s ON s.stage_id = t.stage_id
+    WHERE t.activity_type_id = NEW.activity_type_id;
+  END IF;
+  IF v_profile IS NOT NULL AND EXISTS (SELECT 1 FROM cultivation_cycle c WHERE c.crop_profile_id = v_profile) THEN
+    RAISE EXCEPTION 'cấu hình: crop profile đã có chu kỳ sử dụng, tạo phiên bản mới';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_stage_profile_in_use BEFORE INSERT ON stage FOR EACH ROW EXECUTE FUNCTION f_config_in_use();
+CREATE TRIGGER trg_activity_type_profile_in_use BEFORE INSERT ON activity_type FOR EACH ROW EXECUTE FUNCTION f_config_in_use();
+CREATE TRIGGER trg_evidence_requirement_profile_in_use BEFORE INSERT ON evidence_requirement FOR EACH ROW EXECUTE FUNCTION f_config_in_use();
+
 CREATE FUNCTION f_plot_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'plot: không cho DELETE'; END IF;
   IF (NEW.plot_id, NEW.farm_id, NEW.code, NEW.created_by, NEW.created_at)
      IS DISTINCT FROM (OLD.plot_id, OLD.farm_id, OLD.code, OLD.created_by, OLD.created_at) THEN
     RAISE EXCEPTION 'plot: không đổi định danh, hộ sở hữu hoặc mã lô đất';
+  END IF;
+  IF (NEW.area_m2, NEW.growing_area_code, NEW.geo_point) IS DISTINCT FROM (OLD.area_m2, OLD.growing_area_code, OLD.geo_point)
+     AND EXISTS (SELECT 1 FROM cultivation_cycle c JOIN activity a ON a.cycle_id = c.cycle_id JOIN lot l ON l.harvest_activity_id = a.activity_id WHERE c.plot_id = OLD.plot_id) THEN
+    RAISE EXCEPTION 'plot: lô đất đã sinh lô thu hoạch, không sửa thông tin hiển thị trên QR';
   END IF;
   RETURN NEW;
 END $$;
@@ -86,6 +120,10 @@ BEGIN
   IF (NEW.farm_id, NEW.owner_agent_id, NEW.created_by, NEW.created_at)
      IS DISTINCT FROM (OLD.farm_id, OLD.owner_agent_id, OLD.created_by, OLD.created_at) THEN
     RAISE EXCEPTION 'farm: không đổi định danh hoặc chủ hộ';
+  END IF;
+  IF (NEW.name, NEW.province, NEW.commune, NEW.address_detail) IS DISTINCT FROM (OLD.name, OLD.province, OLD.commune, OLD.address_detail)
+     AND EXISTS (SELECT 1 FROM plot p JOIN cultivation_cycle c ON c.plot_id = p.plot_id JOIN activity a ON a.cycle_id = c.cycle_id JOIN lot l ON l.harvest_activity_id = a.activity_id WHERE p.farm_id = OLD.farm_id) THEN
+    RAISE EXCEPTION 'farm: hộ đã có lô thu hoạch, không sửa thông tin hiển thị trên QR';
   END IF;
   RETURN NEW;
 END $$;
@@ -121,8 +159,12 @@ BEGIN
   IF EXISTS (SELECT 1 FROM lot_input li WHERE li.input_lot_id = v_out) THEN
     RAISE EXCEPTION 'lot_input: lô đầu ra đã được dùng tiếp, không thêm đầu vào hồi tố';
   END IF;
-  IF EXISTS (SELECT 1 FROM verification v WHERE v.lot_event_id = NEW.event_id) THEN
+  IF EXISTS (SELECT 1 FROM v_verification_effective v WHERE v.lot_event_id = NEW.event_id AND v.result = 'verified') THEN
     RAISE EXCEPTION 'lot_input: sự kiện đã được xác minh, không thêm đầu vào';
+  END IF;
+  IF NEW.recorded_at::date > (SELECT e.recorded_at::date FROM lot_event e WHERE e.event_id = NEW.event_id)
+     AND NOT EXISTS (SELECT 1 FROM v_verification_effective v WHERE v.lot_event_id = NEW.event_id AND v.result = 'rejected') THEN
+    RAISE EXCEPTION 'lot_input: ghi bổ sung sau ngày ghi sự kiện chỉ được khi sự kiện đang bị từ chối';
   END IF;
   RETURN NEW;
 END $$;

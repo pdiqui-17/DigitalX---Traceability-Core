@@ -1,4 +1,4 @@
-Hệ CSDL: postgres · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 17:41
+Hệ CSDL: postgres · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 18:02
 
 ────────────────────────────────────────────────────────────
   K1 — Truy ngược QR-80 → 3 hộ nguồn + tỷ trọng

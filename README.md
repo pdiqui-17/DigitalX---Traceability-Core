@@ -52,7 +52,7 @@ Chạy thẳng các truy vấn `SELECT` trên toàn bộ view cốt lõi (`v_lot
 
 1. Copy `db/.env.example` thành `db/.env` và điền `PGPASSWORD` (cùng `PGHOST`, `PGPORT`, `PGUSER` nếu khác mặc định). `db/.env` không được commit.
 2. `PGDATABASE` (mặc định `traceability_test`) **bị xóa và tạo lại mỗi lần chạy**, nên tên bắt buộc kết thúc bằng `_test`.
-3. Kiểm tra kết nối: `python dbtools.py` → `PostgreSQL OK (...): 27 bảng, 17 view, 27 trigger`.
+3. Kiểm tra kết nối: `python dbtools.py` → `PostgreSQL OK (...): 27 bảng, 17 view, 31 trigger`.
 
 Chỉ cần `psql` (cài cùng PostgreSQL), không cần thư viện Python nào. Ca phản biện độc lập cũng chạy được trên PostgreSQL: `python ../review/review_tests.py pg` (dùng chung `db/.env`).
 
@@ -75,8 +75,10 @@ Kết quả hiện tại (28/11/2026), log ở [`db/logs/`](db/logs/):
 | Bộ | SQLite | PostgreSQL 18 |
 |---|---|---|
 | Kịch bản K1–K6 (`run_scenarios.py lac`) | 6/6 | 6/6 |
-| Hồi quy (`smoke_test.py`) | 87/87 | 87/87 |
-| Ca phản biện độc lập (`review/review_tests.py [pg]`) — phát hiện / đứng vững | 14 / 38 | 14 / 47 (thêm 9 ca trigger PG) |
+| Hồi quy (`smoke_test.py`) | 103/103 | 103/103 |
+| Ca phản biện độc lập (`review/review_tests.py [pg]`) — phát hiện / đứng vững | 4 / 48 | 4 / 57 (thêm 9 ca trigger PG) |
+
+4 phát hiện còn lại của bộ phản biện (G2, G4, RV5, RV8) là giới hạn đã ghi trong `docs/D1_D2_schema_design.md` mục 8; script in riêng chúng ở dòng "Đã ghi giới hạn".
 
 ## Thứ tự nạp schema
 

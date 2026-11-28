@@ -106,31 +106,35 @@ L · Mốc lịch
   [OK       ] L3: bản ghi kênh 'import' không có external_ref (không chống nạp trùng được)
               → ok=False
 
-=== N · Lỗi mới do bản sửa v0.5 (SQLite) ===
-  [PHÁT HIỆN] N1: thêm evidence_requirement mới làm đổi trạng thái hoạt động của chu kỳ ĐÃ ĐÓNG
-              → INSERT ok=True; bt1 (đóng 28/02) & complete_share QR-b80: ('complete', 0.75) → ('missing_evidence', 0.0)
-  [PHÁT HIỆN] N2: thêm activity_type bắt buộc vào giai đoạn đang dùng làm chu kỳ cũ thành 'incomplete'
-              → INSERT ok=True; [('c1', 'complete'), ('c2', 'complete')] → [('c1', 'incomplete'), ('c2', 'incomplete')]
-  [PHÁT HIỆN] N3: chu kỳ đóng 28/02 vẫn nhận hoạt động/bản sửa ngày 10–12/03 (vượt bất biến closed_at ≥ hoạt động cuối)
-              → activity ok=True, revision ok=True, sửa ngày thu hoạch ok=True; v_integrity_issues=[]
-  [PHÁT HIỆN] N4: đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau closed_at
-              → ok=False cultivation_cycle: closed_at trước ngày hoạt động cuối của chu kỳ — trigger xét mọi revision, không chỉ bản hiện hành
-  [PHÁT HIỆN] N5: đóng nhầm ngày thì không có cách sửa có lý do (không có bảng lịch sử đóng)
+=== RV · Lỗi mới do bản sửa v0.5 (SQLite) — mã RV để không trùng N1–N30 của smoke_test ===
+  [OK       ] RV1: thêm evidence_requirement mới làm đổi trạng thái hoạt động của chu kỳ ĐÃ ĐÓNG
+              → INSERT ok=False; bt1 (đóng 28/02) & complete_share QR-b80: ('complete', 0.75) → ('complete', 0.75)
+  [OK       ] RV2: thêm activity_type bắt buộc vào giai đoạn đang dùng làm chu kỳ cũ thành 'incomplete'
+              → INSERT ok=False; [('c1', 'complete'), ('c2', 'complete')] → [('c1', 'complete'), ('c2', 'complete')]
+  [OK       ] RV3: chu kỳ đóng 28/02 vẫn nhận hoạt động/bản sửa ngày 10–12/03 (vượt bất biến closed_at ≥ hoạt động cuối)
+              → activity ok=True, revision ok=False, sửa ngày thu hoạch ok=False; v_integrity_issues=[]
+  [OK       ] RV4: đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau closed_at
+              → ok=True  — trigger xét mọi revision, không chỉ bản hiện hành
+  [PHÁT HIỆN] RV5: đóng nhầm ngày thì không có cách sửa có lý do (không có bảng lịch sử đóng)
               → ok=False cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at
-  [PHÁT HIỆN] N6: bổ sung đầu vào sau khi xác minh 'rejected' (luồng sửa hợp lệ)
-              → ok=False (lot_input: sự kiện đã được xác minh, không thêm đầu vào) — chặn cả khi kết luận là từ chối
-  [PHÁT HIỆN] N7: thêm đầu vào vào sự kiện ĐÓNG CHAI (lô lá) 3 tháng sau, khi QR đã lưu hành
-              → ok=True; tỷ trọng H1 của QR-b80: 0.4 → 0.7; v_integrity_issues=[]
-  [PHÁT HIỆN] N8: nạp lại cùng mã ngoài bằng INSERT OR IGNORE / ON CONFLICT DO NOTHING (import idempotent)
+  [OK       ] RV6: bổ sung đầu vào sau khi xác minh 'rejected' (luồng sửa hợp lệ)
+              → ok=True () — chặn cả khi kết luận là từ chối
+  [OK       ] RV7: thêm đầu vào vào sự kiện ĐÓNG CHAI (lô lá) 3 tháng sau, khi QR đã lưu hành
+              → ok=False; tỷ trọng H1 của QR-b80: 0.4 → 0.4; v_integrity_issues=[]
+  [PHÁT HIỆN] RV8: nạp lại cùng mã ngoài bằng INSERT OR IGNORE / ON CONFLICT DO NOTHING (import idempotent)
               → OR IGNORE ok=False (append-only: observation trùng khóa (không ghi đè)); ON CONFLICT DO NOTHING ok=False (append-only: observation trùng khóa (không ghi đè)); trên PG câu thứ hai chạy được → hai hệ khác hành vi
-  [PHÁT HIỆN] N10: cùng file, sha256 viết hoa/thường khác nhau, đếm thành 2
-              → bt3 = complete; sha256 không CHECK định dạng (64 ký tự hex thường)
-  [PHÁT HIỆN] N11: lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh
-              → bt1_dup=missing_evidence; c1=('complete', 0) (chỉ bản ghi đầu tiên được xét; n_other_problem lọc requirement<>'mandatory')
-  [PHÁT HIỆN] N12: đổi tỉnh/xã/tên hộ, toạ độ, mã vùng trồng của lô đất đã sinh lô (trang QR đổi theo)
-              → farm UPDATE ok=True, plot UPDATE ok=True; không có lịch sử
-  [PHÁT HIỆN] N13: mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó
-              → lot_created at=2026-11-25T08:00:00 (vị trí 3) trước cả hoạt động canh tác; đóng chai at=2027-02-22 (vị trí 16) — dữ liệu import/backfill sẽ dồn về ngày nạp
+  [OK       ] RV10: cùng file, sha256 viết hoa/thường khác nhau, đếm thành 2
+              → bt3 = missing_evidence; sha256 không CHECK định dạng (64 ký tự hex thường)
+  [OK       ] RV11: lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh
+              → bt1_dup=missing_evidence; c1=('incomplete', 1) (chỉ bản ghi đầu tiên được xét; n_other_problem lọc requirement<>'mandatory')
+  [OK       ] RV12: đổi tỉnh/xã/tên hộ, toạ độ, mã vùng trồng của lô đất đã sinh lô (trang QR đổi theo)
+              → farm UPDATE ok=False, plot UPDATE ok=False; không có lịch sử
+  [OK       ] RV13: mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó
+              → lot_created at=2027-02-22 (vị trí 16) trước cả hoạt động canh tác; đóng chai at=2027-02-22 (vị trí 15) — dữ liệu import/backfill sẽ dồn về ngày nạp
 
-Tổng: 14 phát hiện, 38 ca đứng vững
-Phát hiện: G2, G4, N1, N2, N3, N4, N5, N6, N7, N8, N10, N11, N12, N13
+Tổng: 4 phát hiện (0 chưa xử lý, 4 đã ghi giới hạn), 48 ca đứng vững
+Chưa xử lý: —
+Đã ghi giới hạn: G2 — mục 8 dòng 7d — thu hoạch nhiều đợt (ĐATN)
+Đã ghi giới hạn: G4 — mục 8 dòng 7d — hai chu kỳ chồng nhau trên một lô đất (ĐATN)
+Đã ghi giới hạn: RV5 — mục 8 dòng 7b — đóng chu kỳ nhầm ngày chưa đính chính được
+Đã ghi giới hạn: RV8 — mục 8 dòng 16 — SQLite không phân biệt INSERT OR IGNORE với INSERT; nạp lại dùng INSERT … WHERE NOT EXISTS

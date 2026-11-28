@@ -1,4 +1,4 @@
-"""Bộ kiểm tra hồi quy schema v0.5 (87 kiểm tra) — cùng một bộ dữ liệu trên SQLite và PostgreSQL.
+"""Bộ kiểm tra hồi quy schema v0.5.1 (103 kiểm tra: 87 của v0.5 + W1–W16) — cùng một bộ dữ liệu trên SQLite và PostgreSQL.
 
 Kịch bản trình bày K1–K6 (minh chứng E3, E4) nằm ở run_scenarios.py. File này giữ các
 kiểm tra mà sổ quyết định trích dẫn cho tiêu chí O1/O2 (F1–F7, R1, R4, N1, N2, N9, N17, V9,
@@ -79,6 +79,9 @@ ins("evidence_requirement", "er1", "at_bt", None, "photo", 1, "giả định nh�
 ins("evidence_requirement", "er2", "at_phun", None, "photo", 1, "giả định nhóm", 1)
 ins("evidence_requirement", "er3", "at_th", None, "weighing_slip", 1, "giả định nhóm", 1)
 ins("evidence_requirement", "er4", None, "aggregation", "weighing_slip", 1, "giả định nhóm", 1)
+# dùng ở N17 — v0.5.1: cấu hình phải có trước khi crop profile có chu kỳ (RV1/RV2)
+ins("activity_type", "at_bt2", "st_cs", "TOP_DRESS_2", "Bón thúc 2", "optional", None, 0, 0, 0, None, "detail", "mock", 1)
+ins("evidence_requirement", "er_j", "at_bt2", None, "photo", 2, "mock", 1)
 ins("input_material", "m_ure", "fertilizer", "Urê", "N", None, "kg")
 ins("input_material", "m_x", "pesticide", "Thuốc X", "Hoạt chất X", "REG-X", "ml")
 ins("input_material", "m_y", "pesticide", "Thuốc Y", "Hoạt chất Y", "REG-Y", "ml")
@@ -264,12 +267,13 @@ check("V3", "bổ sung ảnh ép dầu → chuỗi 'complete'", cs == "complete"
 verify("ver_ep", "lot_event_id", "e_ep", "u_qa", "rejected")
 cs = db.run("SELECT chain_evidence_state, n_chain_rejected FROM v_lot_status WHERE public_code = 'QR-80'")[0]
 check("V4", "QA từ chối sự kiện ép dầu → chuỗi 'rejected'", (cs[0], str(cs[1])) == ("rejected", "1"), str(cs))
-tl = db.run("SELECT kind, ref_id, at FROM v_lot_timeline WHERE root_lot_id = 'b80' ORDER BY at, kind")
+tl = db.run("SELECT kind, ref_id, at FROM v_lot_timeline WHERE root_lot_id = 'b80' ORDER BY at, kind_rank, ref_id")
 kinds = sorted({r[0] for r in tl})
 check("V5", "timeline QR-80 hợp nhất 6 loại (v0.5 thêm lot_revision)", kinds == ["activity", "cycle_anchor", "lot_event", "lot_revision", "observation", "verification"], f"{len(tl)} dòng: {kinds}")
-check("V6", "timeline sắp theo thời gian: bắt đầu từ mốc gieo, kết thúc ở đóng chai",
-      tl[0][0] == "cycle_anchor" and tl[-1][1] in ("e_b80", "ver_ep") and any(r[1] == "e_ep" for r in tl),
-      f"đầu={tl[0][:2]}, cuối={tl[-1][:2]}")
+_ids = [r[1] for r in tl]
+check("V6", "timeline sắp theo thời gian: bắt đầu từ mốc gieo, kết thúc ở đóng chai rồi lô chai được tạo (v0.5.1: lot_created theo thời điểm nghiệp vụ)",
+      tl[0][0] == "cycle_anchor" and _ids[-2:] == ["e_b80", "b80_r1"] and "e_ep" in _ids,
+      f"đầu={tl[0][:2]}, cuối={[r[:2] for r in tl[-2:]]}")
 ns = db.run("SELECT COUNT(*) FROM cultivation_cycle c JOIN season s ON s.season_id = c.season_id WHERE s.name = 'Đông Xuân 2026–2027'")[0][0]
 check("V7", "vụ là thực thể: truy vấn mọi chu kỳ của vụ Đông Xuân", str(ns) == "4", f"{ns} chu kỳ")
 ch = db.run("SELECT source_channel, external_ref FROM observation WHERE observation_id = 'obs1'")[0]
@@ -338,8 +342,12 @@ blocked("C10", "chứng nhận gắn 2 phạm vi",
         f"INSERT INTO certification VALUES ('cx','VietGAP','1','u_cert','2026-01-01','2027-01-01','fa','pa',NULL,NULL,'u_fns',{q(T)})", "check")
 blocked("C11", "số đo cảm biến không ghi vị trí", f"INSERT INTO observation VALUES ('obx','dev1',{q(T)},1,NULL,NULL,{q(T)},'iot_gateway',NULL)", "check")
 blocked("C12", "luật cách ly không có nguồn", "INSERT INTO material_crop_rule VALUES ('m_y','SESAME',3,NULL,1)", "notnull")
+# v0.5.1: crop profile đang có chu kỳ bị khóa cấu hình (W1, W2) → thử trùng mã trên một profile chưa dùng
+ins("crop_profile", "cp_u", "SESAME_U", "Profile chưa dùng", 1, "sowing", None, "mock", "2026-01-01")
+ins("stage", "st_u", "cp_u", 1, "Chăm sóc")
+ins("activity_type", "at_u", "st_u", "TOP_DRESS_1", "Bón thúc 1", "optional", None, 0, 0, 0, None, "detail", None, 0)
 blocked("C13", "hai loại hoạt động trùng mã trong một giai đoạn",
-        "INSERT INTO activity_type VALUES ('at_dup','st_cs','TOP_DRESS_1','x','optional',NULL,0,0,0,NULL,'detail',NULL,0)", "unique")
+        "INSERT INTO activity_type VALUES ('at_dup','st_u','TOP_DRESS_1','x','optional',NULL,0,0,0,NULL,'detail',NULL,0)", "unique")
 
 blocked("C14", "đổi lặng lẽ cây trồng của chu kỳ", "UPDATE cultivation_cycle SET crop_profile_id = 'cp_lac' WHERE cycle_id = 'ca'", "chỉ được cập nhật closed_at")
 blocked("C15", "sửa mốc gieo không có lý do", f"INSERT INTO cycle_anchor VALUES ('an_x','cb',2,'2026-11-25','u_b',{q(T)},NULL)", "check")
@@ -399,8 +407,6 @@ blocked("N13", "hạ hoạt động bắt buộc thành tùy chọn (đổi kế
 blocked("N14", "xóa yêu cầu minh chứng", "DELETE FROM evidence_requirement WHERE requirement_id = 'er1'", "append-only")
 blocked("N15", "chuyển lô đất sang hộ khác", "UPDATE plot SET farm_id = 'fb' WHERE plot_id = 'pa'", "không đổi định danh")
 blocked("N16", "đổi chủ hộ", "UPDATE farm SET owner_agent_id = 'u_b' WHERE farm_id = 'fa'", "không đổi định danh")
-ins("activity_type", "at_bt2", "st_cs", "TOP_DRESS_2", "Bón thúc 2", "optional", None, 0, 0, 0, None, "detail", "mock", 1)
-ins("evidence_requirement", "er_j", "at_bt2", None, "photo", 2, "mock", 1)
 activity("bt_j", "cc2", "at_bt2", "u_c", "2026-12-10")
 for i in (1, 2):
     ins("evidence", f"ev_j{i}", "photo", f"s3://j{i}", "SAME", None, None, None, "u_c", T, "app", None)
@@ -443,6 +449,87 @@ check("N29", "timeline có xác minh bản ghi lô và lần sửa lô", refs.ge
 verify("ver_old", "activity_revision_id", "bt_b_r1", "u_ktv", "verified")
 d = db.run("SELECT detail FROM v_lot_timeline WHERE root_lot_id = 'hb' AND ref_id = 'ver_old'")[0][0]
 check("N30", "xác minh của bản ghi cũ được ghi nhãn 'bản ghi cũ'", d == "activity (bản ghi cũ)", d)
+
+# ====================================================================
+print("\nW · Hồi quy v0.5.1 (phát hiện RV của đánh giá độc lập trên v0.5, review/review_tests.py)")
+# --- Cấu hình đang dùng (RV1, RV2)
+blocked("W1", "thêm yêu cầu minh chứng vào loại hoạt động của crop profile đang có chu kỳ (RV1)",
+        "INSERT INTO evidence_requirement VALUES ('er_sig','at_bt',NULL,'signature',1,'luật mới 2027',0)", "tạo phiên bản mới")
+blocked("W2", "thêm loại hoạt động bắt buộc vào giai đoạn của crop profile đang có chu kỳ (RV2)",
+        "INSERT INTO activity_type VALUES ('at_new','st_cs','TOP_DRESS_9','Bón thúc 9','mandatory',30,3,0,1,NULL,'detail','luật mới',0)", "tạo phiên bản mới")
+try:
+    ins("crop_profile", "cp_me2", "SESAME", "Mè đen 2 vỏ", 2, "sowing", None, "QT Bình Thuận 2027", "2027-06-01")
+    ins("stage", "st_cs2", "cp_me2", 3, "Chăm sóc")
+    ins("activity_type", "at_bt_v2", "st_cs2", "TOP_DRESS_1", "Bón thúc 1", "mandatory", 15, 3, 0, 1, None, "detail", "QT 2027", 0)
+    ins("evidence_requirement", "er_sig2", "at_bt_v2", None, "signature", 1, "luật mới 2027", 0)
+    w3 = True
+except DBError as e:
+    w3 = False; print("   ", e)
+check("W3", "đổi quy trình = phiên bản crop profile mới (v2) vẫn cấu hình được", w3)
+# --- Chu kỳ đã đóng (RV3) và đóng chu kỳ khi bản cũ có ngày sai (RV4)
+blocked("W4", "chu kỳ đã đóng 28/02 nhận bản sửa ngày thu hoạch 12/03 (RV3)",
+        f"INSERT INTO activity_revision VALUES ('th_a_r2','th_a',2,'2027-03-12','day','u_a',NULL,'u_a',{q(T)},'sửa ngày')", "chu kỳ đã đóng")
+try:
+    activity("bt_a_late", "ca", "at_phun", "u_a", "2027-02-20", [("m_ure", 1, "kg")]); w5 = True
+except DBError as e:
+    w5 = False; print("   ", e)
+check("W5", "chu kỳ đã đóng vẫn nhận ghi muộn việc làm TRƯỚC ngày đóng", w5)
+ins("plot", "pw", "fa", "L9", 1000, None, None, "u_fns", T)
+ins("cultivation_cycle", "cw", "pw", "cp_me", "v_me", "ss_dx", "2026-11-15", None, "u_fns", T)
+activity("th_w", "cw", "at_th", "u_a", "2027-02-10")
+ins("activity_revision", "th_w_r2", "th_w", 2, "2027-03-05", "day", "u_a", None, "u_a", T, "gõ nhầm")
+ins("activity_revision", "th_w_r3", "th_w", 3, "2027-02-10", "day", "u_a", None, "u_a", T, "sửa lại đúng")
+try:
+    db.run("UPDATE cultivation_cycle SET closed_at = '2027-02-28' WHERE cycle_id = 'cw'"); w6 = True
+except DBError as e:
+    w6 = False; print("   ", e)
+check("W6", "đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau ngày đóng (RV4)", w6)
+# --- Cạnh lô: từ chối → bổ sung → xác minh lại (RV6); lô chai cuối chuỗi (RV7)
+new_lot("rw", "RW-1", "aggregated", "Hạt mè", 20, "kg"); event("e_rw", "aggregation", "rw", None, "2027-02-12", "day", "fac_tm")
+ins("lot_input", "e_rw", "ha", 10, "kg")
+verify("ver_rw", "lot_event_id", "e_rw", "u_qa", "rejected")
+try:
+    db.run("INSERT INTO lot_input VALUES ('e_rw','hb',10,'kg','u_fns','2027-03-01T08:00:00')"); w7 = True
+except DBError as e:
+    w7 = False; print("   ", e)
+check("W7", "sự kiện bị từ chối vì thiếu đầu vào → được bổ sung (RV6)", w7)
+verify("ver_rw2", "lot_event_id", "e_rw", "u_ktv", "verified", supersedes="ver_rw", reason="đã bổ sung phiếu cân hộ B")
+blocked("W8", "thêm đầu vào sau khi xác minh lại là 'verified'",
+        "INSERT INTO lot_input VALUES ('e_rw','hc',5,'kg','u_fns','2027-03-02T08:00:00')", "đã được xác minh")
+blocked("W9", "thêm đầu vào vào sự kiện đóng chai (lô cuối chuỗi) 3 tháng sau, khi QR đã lưu hành (RV7)",
+        "INSERT INTO lot_input VALUES ('e_b80','rw',5,'kg','u_fns','2027-06-01T00:00:00')", "chỉ được khi sự kiện đang bị từ chối")
+# --- Minh chứng trùng file khác hoa/thường (RV10)
+activity("bt_k", "cw", "at_bt2", "u_a", "2026-12-10")
+for i, sha in ((1, "abcdef"), (2, "ABCDEF")):
+    ins("evidence", f"ev_k{i}", "photo", f"s3://k{i}", sha, None, None, None, "u_a", T, "app", None)
+    db.run(f"INSERT INTO evidence_link (link_id,evidence_id,activity_revision_id,linked_by,linked_at) VALUES ('lk{i}','ev_k{i}','bt_k_r1','u_a',{q(T)})")
+k = db.run("SELECT evidence_completeness FROM v_activity_status WHERE activity_id = 'bt_k'")[0][0]
+check("W10", "cần 2 ảnh, cùng file với sha256 viết hoa/thường → vẫn thiếu (RV10)", k == "missing_evidence", k)
+# --- Lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh (RV11)
+n0 = int(db.run("SELECT n_other_problem FROM v_cycle_completeness WHERE cycle_id = 'ca'")[0][0])
+activity("bt_a_dup", "ca", "at_bt", "u_a", "2026-12-06", [("m_ure", 5, "kg")])
+r = db.run("SELECT cycle_state, n_other_problem FROM v_cycle_completeness WHERE cycle_id = 'ca'")[0]
+check("W11", "lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh làm chu kỳ chưa đủ (RV11)",
+      r[0] == "incomplete" and int(r[1]) == n0 + 1, f"n_other_problem {n0} → {r[1]}, {r[0]}")
+# --- Thông tin hiện trên QR (RV12)
+blocked("W12", "sửa toạ độ / mã vùng trồng của lô đất đã sinh lô thu hoạch (RV12)",
+        "UPDATE plot SET geo_point = '10.9,108.1', growing_area_code = 'VG-999' WHERE plot_id = 'pa'", "không sửa thông tin hiển thị")
+blocked("W13", "sửa tên / tỉnh của hộ đã có lô thu hoạch (RV12)",
+        "UPDATE farm SET name = 'Hộ khác', province = 'Bình Thuận' WHERE farm_id = 'fa'", "không sửa thông tin hiển thị")
+ins("farm", "fw", "u_c", "Hộ W", "Tây Ninh", "Lương Hòa", None, "u_fns", T)
+ins("plot", "pw2", "fw", "L1", 800, None, None, "u_fns", T)
+try:
+    db.run("UPDATE plot SET area_m2 = 900 WHERE plot_id = 'pw2'")
+    db.run("UPDATE farm SET commune = 'Phước Minh' WHERE farm_id = 'fw'"); w14 = True
+except DBError as e:
+    w14 = False; print("   ", e)
+check("W14", "hộ / lô đất chưa sinh lô thu hoạch vẫn sửa được thông tin", w14)
+# --- Timeline: mốc tạo lô theo thời điểm nghiệp vụ (RV13)
+at_h = db.run("SELECT at FROM v_lot_timeline WHERE root_lot_id = 'ha' AND ref_id = 'ha_r1'")[0][0]
+check("W15", "mốc 'lot_created' của lô thu hoạch H-A = ngày thu hoạch, không phải ngày nạp (RV13)",
+      str(at_h).startswith("2027-02-10"), str(at_h))
+at_b = db.run("SELECT at FROM v_lot_timeline WHERE root_lot_id = 'b80' AND ref_id = 'b80_r1'")[0][0]
+check("W16", "mốc 'lot_created' của QR-80 = lúc đóng chai (RV13)", str(at_b).replace("T", " ").startswith("2027-02-22 10:00"), str(at_b))
 
 ok = sum(1 for _, o in results if o)
 print(f"\nTổng ({DIALECT}): {ok}/{len(results)} đạt")

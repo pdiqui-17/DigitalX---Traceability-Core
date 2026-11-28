@@ -438,7 +438,7 @@ SELECT a.activity_id, a.cycle_id, a.activity_type_id, c.revision_id, c.revision_
        CASE
          WHEN EXISTS (SELECT 1 FROM evidence_requirement er
                       WHERE er.activity_type_id = a.activity_type_id
-                        AND (SELECT COUNT(DISTINCT COALESCE(e.sha256, e.evidence_id))   -- cùng một file tải 2 lần chỉ tính 1
+                        AND (SELECT COUNT(DISTINCT COALESCE(LOWER(e.sha256), e.evidence_id))   -- cùng một file tải 2 lần chỉ tính 1 (không phân biệt hoa/thường — RV10)
                              FROM evidence_link l JOIN evidence e ON e.evidence_id = l.evidence_id
                              WHERE l.activity_revision_id = c.revision_id AND e.evidence_kind = er.evidence_kind) < er.min_count)
            THEN 'missing_evidence'
@@ -457,7 +457,7 @@ SELECT ev.event_id, ev.event_type, ev.output_lot_id, ev.subject_lot_id, ev.occur
        CASE
          WHEN EXISTS (SELECT 1 FROM evidence_requirement er
                       WHERE er.lot_event_type = ev.event_type
-                        AND (SELECT COUNT(DISTINCT COALESCE(e.sha256, e.evidence_id))
+                        AND (SELECT COUNT(DISTINCT COALESCE(LOWER(e.sha256), e.evidence_id))
                              FROM evidence_link l JOIN evidence e ON e.evidence_id = l.evidence_id
                              WHERE l.lot_event_id = ev.event_id AND e.evidence_kind = er.evidence_kind) < er.min_count)
            THEN 'missing_evidence'
