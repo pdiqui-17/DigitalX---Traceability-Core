@@ -1,0 +1,136 @@
+
+=== Các ca thử mới trên SQLite ===
+
+A · Đồ thị lô kim cương (RAW tách 2 nhánh rồi hợp lại) + vận chuyển trên RAW
+  [OK       ] A1: tỷ trọng kim cương cộng đủ 1
+              → {'h1': 0.4, 'h2': 0.35, 'h3': 0.25}
+  [OK       ] A2: v_lot_chain_events không trùng (đúng 5: e_gop, e_vc, e_y, e_z, e_w)
+              → 5 dòng: ['e_gop', 'e_vc', 'e_w', 'e_y', 'e_z']
+  [OK       ] A3: v_lot_status kim cương không đếm trùng
+              → (5, 'complete', 0.9999999999999999, 3)
+  [OK       ] A4: timeline kim cương không trùng dòng
+              → []
+
+B · Lô có sự kiện tạo ra nhưng sự kiện chưa có lot_input
+    v_integrity_issues: [('event_without_inputs', 'e_b500'), ('event_without_inputs', 'e_ghost')]
+  [OK       ] B1: lô đóng gói mà sự kiện chưa có đầu vào
+              → v_lot_status = ('untraceable', 0, 1.0, 0) (mong đợi: untraceable/không truy được, không phải fully_traced)
+  [OK       ] B2: lô gộp có 40% từ lô 'ghost' (sự kiện không đầu vào)
+              → v_lot_status = ('partially_untraceable', 0.6, 0.4); nguồn ghost biến mất khỏi v_lot_sources: [('h1', 0.6, 'harvest'), ('ghost', 0.4, 'untraceable')]
+
+C · Sự kiện gộp ghi đầu ra là một lô THU HOẠCH (loại lô không khớp loại sự kiện)
+  [OK       ] C1: sự kiện ghi đầu ra là lô thu hoạch bị chặn; tỷ trọng không vượt 1
+              → INSERT ok=False (lot_event: loại lô đầu ra không khớp loại sự kiện); H1: (1.0, 1, 'fully_traced'); QR-b80: traced_share=1.0; v_integrity_issues: []
+
+D · Vượt append-only bằng INSERT OR REPLACE (SQLite, recursive_triggers mặc định tắt)
+  [OK       ] D1: INSERT OR REPLACE: verification rejected → verified
+              → bị chặn: append-only: verification trùng khóa (không ghi đè)
+  [OK       ] D2: INSERT OR REPLACE: cycle_anchor đổi ngày gieo không để lại lịch sử
+              → bị chặn: append-only: cycle_anchor trùng khóa (không ghi đè)
+  [OK       ] D3: INSERT OR REPLACE: lot_input đổi khối lượng → đổi tỷ trọng QR
+              → bị chặn: append-only: lot_input trùng khóa (không ghi đè)
+  [OK       ] D4: INSERT OR REPLACE: activity_revision đổi ngày làm
+              → bị chặn: append-only: activity_revision trùng khóa (không ghi đè)
+  [OK       ] D5: UPSERT ON CONFLICT DO UPDATE bị trigger UPDATE chặn
+              → append-only: verification trùng khóa (không ghi đè)
+
+E · closed_at: cột duy nhất được UPDATE, không có lịch sử
+  [OK       ] E1: hộ 3 thiếu bón thúc; thử đóng chu kỳ 01/12 (trước ngày thu hoạch 10/02), rồi đóng hợp lệ 10/02
+              → đóng 01/12: ok=False (cultivation_cycle: closed_at trước ngày hoạt động cuối của chu kỳ); trước ('complete', 0, 1), complete_share=1.0 → sau khi đóng 10/02 (ok=True): ('incomplete', 1, 0), complete_share=0.75
+  [OK       ] E2: mở lại chu kỳ đã đóng (closed_at → NULL) không cần lý do
+              → UPDATE ok=False
+  [OK       ] E3: UPDATE closed_at kèm started_at bị chặn
+              → cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at
+  [OK       ] E4: UPDATE khóa chính cycle_id (không có trong danh sách cột trigger)
+              → ok=False cultivation_cycle: chỉ được cập nhật closed_at; mốc lịch sửa qua cycle_anchor (chu kỳ chưa có con → đổi được)
+
+F · Phun thuốc (conditional) thiếu ảnh bắt buộc
+  [OK       ] F1: chu kỳ 1 có hoạt động phun 'missing_evidence'
+              → activity=missing_evidence, cycle_state=incomplete, QR H1 complete_share=0.0
+
+G · Digital timeline
+  [OK       ] G1: xác minh bản ghi LÔ (lab của PROC bị từ chối) có trong timeline
+              → v_lot_status đếm nó (n_chain_rejected, state)=(1, 'rejected'), nhưng timeline không có dòng 'vlr'
+  [PHÁT HIỆN] G2: timeline lô thu hoạch đợt 1 chỉ chứa hoạt động trước/đến ngày thu hoạch
+              → có cả hoạt động SAU thu hoạch: [('activity', 'ph_late', '2027-02-15'), ('activity', 'th1b', '2027-02-20')]
+  [OK       ] G3: số đo trong ngày đóng chu kỳ (28/02 10:00) được tính
+              → observation của H1: ['o_close', 'o_in'] (o_close bị loại do so timestamp với DATE)
+  [PHÁT HIỆN] G4: chu kỳ chưa đóng không hút số đo của vụ sau trên cùng lô đất
+              → observation của H2: ['o_next']
+  [OK       ] G5: xác minh của bản ghi CŨ (bt2_r1) không được trình bày như xác minh hiện hành
+              → timeline: [('v_old', 'activity (bản ghi cũ)'), ('vg1', 'lot_event'), ('vg2', 'lot_event (thay thế lần trước)'), ('vlr', 'lot_revision')]; v_activity_status bt2 = ('unverified',)
+  [OK       ] G6: hoạt động nhiều revision chỉ hiện một lần
+              → ['bt1', 'bt2', 'ph_late', 'th1', 'th1b', 'th2', 'th3']
+  [OK       ] G7: timeline QR-b80 không trùng dòng
+              → 26 dòng, trùng=[]
+  [OK       ] G8: timeline có mốc tạo/sửa bản ghi lô (lot_revision) và minh chứng gắn lô
+              → không có loại 'lot_revision' — sửa khối lượng RAW không hiện trên timeline
+
+H · Trường hợp biên của v_lot_status
+  [OK       ] H1: quét QR lô thu hoạch trực tiếp
+              → ('fully_traced', 1.0, 'no_post_harvest_events', 0)
+  [OK       ] H2: lô từ chu kỳ chưa có anchor: v_lot_status không phân biệt 'undetermined' với 'incomplete'
+              → hna ('fully_traced', 1.0, 0, 1.0) (cycle_state=undetermined) vs h3 (thiếu bón thúc) complete_share=0.0 — cùng 0, không có cột undetermined_share
+  [OK       ] H3: lô mồ côi (aggregated, không có sự kiện) có chain_evidence_state hợp lý
+              → ('untraceable', 1.0, 'no_source_event')
+  [OK       ] H4: mốc thu mua/vận chuyển 0 minh chứng vẫn 'complete' (không có yêu cầu ⇒ complete)
+              → [('e_mua', 'not_required'), ('e_vc', 'not_required')]; không phân biệt 'không yêu cầu' với 'đủ'
+
+I · Bảng không append-only làm đổi kết luận lịch sử
+  [OK       ] I1: UPDATE activity_type.requirement (mandatory→optional) đổi kết luận chu kỳ cũ
+              → ok=False; c3: incomplete → incomplete
+  [OK       ] I2: DELETE evidence_requirement biến 'missing_evidence' thành 'complete'
+              → ok=False; bt3: missing_evidence → missing_evidence
+  [OK       ] I3: UPDATE plot.farm_id đổi 'sản phẩm từ farm nào' của lô cũ
+              → ok=False; H1 giờ thuộc ('f1',)
+  [OK       ] I4: UPDATE farm.owner_agent_id không để lại lịch sử
+              → ok=False
+
+J · Một file tải lên 2 lần (cùng sha256) đếm là 2 minh chứng
+  [OK       ] J1: min_count=2 thỏa bằng 2 bản ghi cùng sha256
+              → bt3 = missing_evidence
+
+K · Tính đúng của chuỗi lô
+  [OK       ] K1: dùng quá khối lượng lô PROC được phát hiện
+              → đã dùng 705 l / 400 l; v_integrity_issues=[('over_consumption', 'proc'), ('event_time_order', 'e_early')]
+  [OK       ] K2: đóng chai (01/01) trước khi ép dầu (20/02) được phát hiện
+              → không có kiểm tra thứ tự thời gian
+  [OK       ] K3: thêm đầu vào vào sự kiện ép dầu ĐÃ xong, sau khi chai đã bán (đổi tỷ trọng QR hồi tố)
+              → ok=False; tỷ trọng H1 của QR-b80: 0.4 → 0.4; lot_input không có recorded_by/recorded_at: cột=['event_id', 'input_lot_id', 'quantity_used', 'unit', 'recorded_by', 'recorded_at']
+
+L · Mốc lịch
+  [OK       ] L1: anchor revision nhảy cóc (1→5) và recorded_at lùi về 2020
+              → ok=False
+  [OK       ] L2: hoạt động ghi ngày 2025 (trước started_at chu kỳ 15/11/2026) vẫn nhận
+              → được ghi và hiện trên timeline (0 dòng), không có cảnh báo
+  [OK       ] L3: bản ghi kênh 'import' không có external_ref (không chống nạp trùng được)
+              → ok=False
+
+=== N · Lỗi mới do bản sửa v0.5 (SQLite) ===
+  [PHÁT HIỆN] N1: thêm evidence_requirement mới làm đổi trạng thái hoạt động của chu kỳ ĐÃ ĐÓNG
+              → INSERT ok=True; bt1 (đóng 28/02) & complete_share QR-b80: ('complete', 0.75) → ('missing_evidence', 0.0)
+  [PHÁT HIỆN] N2: thêm activity_type bắt buộc vào giai đoạn đang dùng làm chu kỳ cũ thành 'incomplete'
+              → INSERT ok=True; [('c1', 'complete'), ('c2', 'complete')] → [('c1', 'incomplete'), ('c2', 'incomplete')]
+  [PHÁT HIỆN] N3: chu kỳ đóng 28/02 vẫn nhận hoạt động/bản sửa ngày 10–12/03 (vượt bất biến closed_at ≥ hoạt động cuối)
+              → activity ok=True, revision ok=True, sửa ngày thu hoạch ok=True; v_integrity_issues=[]
+  [PHÁT HIỆN] N4: đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau closed_at
+              → ok=False cultivation_cycle: closed_at trước ngày hoạt động cuối của chu kỳ — trigger xét mọi revision, không chỉ bản hiện hành
+  [PHÁT HIỆN] N5: đóng nhầm ngày thì không có cách sửa có lý do (không có bảng lịch sử đóng)
+              → ok=False cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at
+  [PHÁT HIỆN] N6: bổ sung đầu vào sau khi xác minh 'rejected' (luồng sửa hợp lệ)
+              → ok=False (lot_input: sự kiện đã được xác minh, không thêm đầu vào) — chặn cả khi kết luận là từ chối
+  [PHÁT HIỆN] N7: thêm đầu vào vào sự kiện ĐÓNG CHAI (lô lá) 3 tháng sau, khi QR đã lưu hành
+              → ok=True; tỷ trọng H1 của QR-b80: 0.4 → 0.7; v_integrity_issues=[]
+  [PHÁT HIỆN] N8: nạp lại cùng mã ngoài bằng INSERT OR IGNORE / ON CONFLICT DO NOTHING (import idempotent)
+              → OR IGNORE ok=False (append-only: observation trùng khóa (không ghi đè)); ON CONFLICT DO NOTHING ok=False (append-only: observation trùng khóa (không ghi đè)); trên PG câu thứ hai chạy được → hai hệ khác hành vi
+  [PHÁT HIỆN] N10: cùng file, sha256 viết hoa/thường khác nhau, đếm thành 2
+              → bt3 = complete; sha256 không CHECK định dạng (64 ký tự hex thường)
+  [PHÁT HIỆN] N11: lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh
+              → bt1_dup=missing_evidence; c1=('complete', 0) (chỉ bản ghi đầu tiên được xét; n_other_problem lọc requirement<>'mandatory')
+  [PHÁT HIỆN] N12: đổi tỉnh/xã/tên hộ, toạ độ, mã vùng trồng của lô đất đã sinh lô (trang QR đổi theo)
+              → farm UPDATE ok=True, plot UPDATE ok=True; không có lịch sử
+  [PHÁT HIỆN] N13: mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó
+              → lot_created at=2026-11-25T08:00:00 (vị trí 3) trước cả hoạt động canh tác; đóng chai at=2027-02-22 (vị trí 16) — dữ liệu import/backfill sẽ dồn về ngày nạp
+
+Tổng: 14 phát hiện, 38 ca đứng vững
+Phát hiện: G2, G4, N1, N2, N3, N4, N5, N6, N7, N8, N10, N11, N12, N13

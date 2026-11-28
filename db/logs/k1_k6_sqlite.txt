@@ -1,4 +1,4 @@
-Hệ CSDL: sqlite · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 14:25
+Hệ CSDL: sqlite · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 17:41
 
 ────────────────────────────────────────────────────────────
   K1 — Truy ngược QR-80 → 3 hộ nguồn + tỷ trọng

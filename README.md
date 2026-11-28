@@ -54,7 +54,7 @@ Chạy thẳng các truy vấn `SELECT` trên toàn bộ view cốt lõi (`v_lot
 2. `PGDATABASE` (mặc định `traceability_test`) **bị xóa và tạo lại mỗi lần chạy**, nên tên bắt buộc kết thúc bằng `_test`.
 3. Kiểm tra kết nối: `python dbtools.py` → `PostgreSQL OK (...): 27 bảng, 17 view, 27 trigger`.
 
-Chỉ cần `psql` (cài cùng PostgreSQL), không cần thư viện Python nào. `pg_load.sh` là bản cũ chỉ chạy trên Linux, còn giữ cho `review/review_tests.py`.
+Chỉ cần `psql` (cài cùng PostgreSQL), không cần thư viện Python nào. Ca phản biện độc lập cũng chạy được trên PostgreSQL: `python ../review/review_tests.py pg` (dùng chung `db/.env`).
 
 ### Lưu kết quả ra file
 
@@ -66,6 +66,8 @@ python run_scenarios.py lac --log logs/k1_k6_sqlite.txt
 python run_scenarios.py lac --pg --log logs/k1_k6_postgres.txt
 python smoke_test.py sqlite --log logs/smoke_sqlite.txt
 python smoke_test.py postgres --log logs/smoke_postgres.txt
+python ../review/review_tests.py --log logs/review_sqlite.txt
+python ../review/review_tests.py pg --log logs/review_postgres.txt
 ```
 
 Kết quả hiện tại (28/11/2026), log ở [`db/logs/`](db/logs/):
@@ -74,6 +76,7 @@ Kết quả hiện tại (28/11/2026), log ở [`db/logs/`](db/logs/):
 |---|---|---|
 | Kịch bản K1–K6 (`run_scenarios.py lac`) | 6/6 | 6/6 |
 | Hồi quy (`smoke_test.py`) | 87/87 | 87/87 |
+| Ca phản biện độc lập (`review/review_tests.py [pg]`) — phát hiện / đứng vững | 14 / 38 | 14 / 47 (thêm 9 ca trigger PG) |
 
 ## Thứ tự nạp schema
 

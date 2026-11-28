@@ -9,15 +9,14 @@
 
 | File | Nội dung |
 |---|---|
-| `schema.sql` | 27 bảng, ràng buộc, index, 12 view dùng chung (SQL chuẩn) |
+| `schema.sql` | 27 bảng, ràng buộc, index, 11 view dùng chung (SQL chuẩn) |
 | `triggers_sqlite.sql` / `triggers_postgres.sql` | **Sinh bởi `gen_triggers.py`.** Chỉ ghi thêm (kể cả bảng cấu hình), chặn ghi đè, số bản tăng đúng 1, đóng chu kỳ, khóa lô đất/nông hộ, loại lô đầu ra, cạnh lô, lô thu hoạch, luật xác minh |
-| `views_sqlite.sql` / `views_postgres.sql` | **Sinh bởi `gen_views.py`.** 5 view có phép so ngày: lịch dự kiến, độ đầy đủ chu kỳ, trạng thái lô, vi phạm cách ly, kiểm nhất quán |
+| `views_sqlite.sql` / `views_postgres.sql` | **Sinh bởi `gen_views.py`.** 6 view có phép so ngày: lịch dự kiến, độ đầy đủ chu kỳ, trạng thái lô, vi phạm cách ly, kiểm nhất quán, digital timeline |
 | `run_scenarios.py` | **Bản chính cho K1–K6** (minh chứng E3, E4): `python run_scenarios.py lac` (SQLite) hoặc `lac --pg` (PostgreSQL); `--log <file>` ghi log UTF-8 |
 | `seed_me.sql`, `seed_lac.sql` | Bộ mock cho K1–K6: 3 hộ mè + chu kỳ chưa có ngày gieo; hộ D trồng lạc (chỉ INSERT) |
 | `smoke_test.py` | 87 kiểm tra hồi quy: `python smoke_test.py sqlite` hoặc `postgres` |
 | `dbtools.py` | Kết nối dùng chung SQLite / PostgreSQL (qua `psql`, cấu hình `db/.env`, mẫu `db/.env.example`) và ghi log UTF-8 |
 | `logs/` | Log kết quả chạy thật — Evidence Board dẫn thẳng tới đây |
-| `pg_load.sh` | Bản cũ chỉ chạy trên Linux, còn dùng cho `review/review_tests.py`; kiểm thử chính dùng `dbtools.py` |
 | `gen_diagram.py` | **Sinh class diagram tự động từ `schema.sql`** → sơ đồ không lệch SQL |
 | `class_diagram.png` + `cd_1_canh_tac.png`, `cd_2_lo.png`, `cd_3_minh_chung_xac_minh.png` | Sơ đồ đầy đủ (phụ lục) + 3 sơ đồ con (chương thiết kế) |
 
@@ -411,6 +410,7 @@ Trang QR là **bắt buộc** cho ĐACN. Thứ tự làm, vì trang đọc từ 
 |---|---|---|---|---|
 | Kịch bản K1–K6 (minh chứng E3, E4) | `python run_scenarios.py lac [--pg]` | 6/6 | 6/6 | `db/logs/k1_k6_sqlite.txt`, `k1_k6_postgres.txt`, `k1_k6_sqlite_raw.txt` (kèm SQL + dữ liệu thô) |
 | Hồi quy schema | `python smoke_test.py sqlite\|postgres` | 87/87 | 87/87 | `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
+| Ca phản biện độc lập (phát hiện / đứng vững) | `python ../review/review_tests.py [pg]` | 14 / 38 | 14 / 47 | `db/logs/review_sqlite.txt`, `review_postgres.txt` |
 
 **K6 duy nhất** là hộ D trong `run_scenarios.py` / `seed_lac.sql` (gieo → bón lót → phun → thu hoạch → rang → vận chuyển → đóng gói → truy ngược QR-LAC-200). `F15` (hộ E) trong `smoke_test.py` chỉ là hồi quy cấu hình lạc, không dùng làm bằng chứng K6.
 

@@ -18,11 +18,13 @@ Kiểm tra: <số đạt>/<tổng> trên SQLite và PostgreSQL
 ---
 
 ## [v0.5.1] — 2026-11-28 — nhóm chốt sổ quyết định SD-01…SD-18; ghi nhận họp với thầy (QR bắt buộc)
-Kiểm tra: smoke_test 87/87 và K1–K6 6/6, trên SQLite và PostgreSQL 18 (log ở `db/logs/`). Schema không đổi.
+Kiểm tra: smoke_test 87/87 và K1–K6 6/6, trên SQLite và PostgreSQL 18 (log ở `db/logs/`). Bảng không đổi; `v_lot_timeline` chuyển sang `views_<hệ>.sql` (P8).
 ### Sửa lỗi
 - K6 trước đây có hai bản: `F15` (hộ E, chỉ tới lô thu hoạch) và hộ D trong `run_scenarios.py`. Chốt **hộ D là bằng chứng K6 duy nhất**; `F15` giữ làm hồi quy cấu hình.
 - `smoke_test.py postgres` không chạy được trên Windows (`pg_load.sh` dùng đường dẫn Linux). Thay bằng `db/dbtools.py`: kết nối qua `psql`, cấu hình ở `db/.env` (mẫu `.env.example`), database kiểm thử `*_test` bị xóa và tạo lại mỗi lần chạy. `F15` không còn dùng `sqlite_master`.
 - Log chuyển hướng bằng PowerShell bị lỗi font (UTF-16 / sai bảng mã). Thêm `--log <file>`: script tự ghi UTF-8.
+- `review/review_tests.py pg` cũng chuyển sang `dbtools.py` → chạy được trên Windows. Xóa `db/pg_load.sh` (chỉ chạy Linux, không còn nơi dùng) và `db/test_seeds.py` (11 kiểm tra đều đã có trong K1, K3, K6 và `smoke_test`). Phần SQLite giữ nguyên 14 phát hiện / 38 ca như trước khi sửa.
+- **P8 (PostgreSQL, lộ ra khi chạy được `review_tests.py pg`):** `v_lot_timeline` lọc số đo IoT theo khoảng chu kỳ bằng cách so chuỗi (`SUBSTR(CAST(observed_at AS TEXT),1,10)` với `CAST(started_at AS TEXT)`). Phiên có `DateStyle = 'SQL, DMY'` cho chuỗi dạng `28/11/2026` → mất số đo (ISO: `o_close,o_in`; DMY: chỉ `o_close`). Sửa: chuyển view từ `schema.sql` sang `gen_views.py`, so bằng kiểu ngày (`date(...)` ở SQLite, `::date` ở PostgreSQL). Tổng số view vẫn 17. Sau sửa: `review_tests.py pg` 14 phát hiện / 47 ca đứng vững, P8 đạt (log `db/logs/review_sqlite.txt`, `review_postgres.txt`).
 ### Thay đổi thiết kế
 - `run_scenarios.py` là bản chính cho K1–K6, chạy được SQLite và PostgreSQL (`--pg`). Kiểm tra "UPDATE bị chặn" ở K5 giờ đòi đúng thông báo của trigger chỉ-ghi-thêm.
 - `D1_D2_schema_design.md`: thêm 6A (độ đầy đủ 4 cấp — SD-07; nhãn hiển thị — SD-13; "bị từ chối" trên QR — SD-12; rút lại liên kết — SD-10; dịch vụ trung tâm — SD-06), 6B danh sách API A1–A7 + mã lỗi, 6C sơ đồ tuần tự quét QR (`docs/diagrams/qr_sequence.mmd`), 6D điều kiện nghiệm thu trang QR. Mục 6 bỏ "11 bước" khỏi tiêu chí O1 (SD-02).

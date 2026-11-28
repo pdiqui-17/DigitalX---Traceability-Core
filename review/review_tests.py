@@ -1,16 +1,18 @@
 """Ca thử phản biện schema v0.4 (người đánh giá độc lập).
 
     cd /tmp/review_v04 && python3 review_tests.py            # SQLite, mọi ca
-    python3 review_tests.py pg                               # thêm các ca trigger trên PostgreSQL (cần db/pg_load.sh)
+    python3 review_tests.py pg                               # thêm các ca trigger trên PostgreSQL (cấu hình ở db/.env, qua db/dbtools.py)
     python3 review_tests.py perf [n_farms] [n_lots]          # đo hiệu năng SQLite (mặc định 200 hộ, 2000 lô)
 
 Mỗi ca dựng CSDL mới từ db/schema.sql + triggers + views, nạp bộ dữ liệu nền nhỏ
 (3 hộ → gộp lô RAW → ép dầu PROC → chai 80ml/250ml), rồi thử phá.
 Dòng 'PHÁT HIỆN' = hành vi khác với mong đợi của đề bài; 'OK' = thiết kế đứng vững.
 """
-import sqlite3, subprocess, sys, time, pathlib, random
+import sqlite3, sys, time, pathlib, random
 
 DB_DIR = pathlib.Path(__file__).parent.parent / "db"
+sys.path.insert(0, str(DB_DIR))
+from dbtools import DBError, Postgres, setup_output  # noqa: E402
 T = "2026-11-25T08:00:00"
 findings, oks = [], []
 
@@ -461,13 +463,14 @@ def run_new_v05():
 
 def run_pg():
     print("\n=== Trigger PostgreSQL ===")
-    r = subprocess.run([str(DB_DIR / "pg_load.sh")], capture_output=True, text=True)
-    print("  " + (r.stdout.strip() or r.stderr.strip()))
-    CMD = ["psql", "-h", "/tmp/pg", "-p", "5544", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-tA", "-q"]
+    db = Postgres()   # xóa + tạo lại PGDATABASE (*_test), nạp schema + trigger + view
+    print(f"  PostgreSQL OK ({db.dbname})")
 
     def pg(sql):
-        p = subprocess.run(CMD, input=sql, capture_output=True, text=True)
-        return p.returncode == 0, (p.stdout + p.stderr).strip()
+        try:
+            return True, db._psql(db.dbname, sql).strip()
+        except DBError as e:
+            return False, str(e).strip()
     ok, out = pg(base_fixture().text())
     if not ok:
         print("  nạp dữ liệu nền lỗi:", out[:300]); return
@@ -496,7 +499,7 @@ def run_pg():
                  "INSERT INTO observation VALUES ('o_out','d1','2027-03-05 06:00:00',20,'p1',NULL,now(),'iot_gateway','z');")
     a = pg("SELECT string_agg(ref_id, ',' ORDER BY ref_id) FROM v_lot_timeline WHERE root_lot_id='h1' AND kind='observation';")
     b = pg("SET datestyle='SQL, DMY'; SELECT string_agg(ref_id, ',' ORDER BY ref_id) FROM v_lot_timeline WHERE root_lot_id='h1' AND kind='observation';")
-    report("P8", a == b, "PG: timeline không phụ thuộc DateStyle của phiên (view so ngày bằng CAST AS TEXT)", f"ISO: {a} số đo; 'SQL, DMY': {b} số đo")
+    report("P8", a == b, "PG: timeline không phụ thuộc DateStyle của phiên (view so ngày bằng kiểu DATE)", f"ISO: {a} số đo; 'SQL, DMY': {b} số đo")
     ok, out = pg("INSERT INTO observation VALUES ('o2','d1','2026-12-02 06:00:00',20,'p1',NULL,now(),'import','GW-1');"
                  "INSERT INTO observation VALUES ('o2b','d1','2026-12-02 06:00:00',20,'p1',NULL,now(),'import','GW-1') ON CONFLICT DO NOTHING;")
     report("P9", ok, "PG: nạp lại idempotent ON CONFLICT DO NOTHING (đối chiếu N8)", out or "ok")
@@ -555,6 +558,7 @@ def run_perf(n_farms=200, n_lots=2000):
 
 
 if __name__ == "__main__":
+    sys.argv = setup_output(sys.argv)
     mode = sys.argv[1] if len(sys.argv) > 1 else "sqlite"
     if mode == "perf":
         run_perf(*(int(x) for x in sys.argv[2:4]))
