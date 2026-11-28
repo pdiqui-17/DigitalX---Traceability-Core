@@ -2,7 +2,8 @@
 
 > Đề tài #6 · ĐACN · chuỗi mè → dầu mè · 25/11/2026
 > Trạng thái: bản để nhóm và bên đánh giá phản biện.
-> **Đã kiểm:** cùng một bộ dữ liệu và 87 kiểm tra chạy trên **SQLite 3.53** và **PostgreSQL 16** → **87/87 đạt trên cả hai**. Ngoài ra một agent đánh giá độc lập (không viết schema) chạy bộ ca thử phá riêng — xem mục 0. Mỗi ca "bị chặn" phải khớp đúng loại lỗi mong đợi (CHECK / UNIQUE / khóa ngoại / thông báo của trigger) — tránh đạt giả do sai số cột hay sai cú pháp.
+> Cập nhật 28/11/2026: thêm mục 6A–6D (định nghĩa độ đầy đủ, nhãn hiển thị, rút lại liên kết, dạng của lõi, danh sách API, sơ đồ tuần tự QR) theo sổ quyết định `Project_Scope_Decision.txt` (SD-06, SD-07, SD-10, SD-12, SD-13, SD-14).
+> **Đã kiểm (28/11):** 87 kiểm tra hồi quy (`smoke_test.py`) **87/87 đạt** và 6 kịch bản K1–K6 (`run_scenarios.py`) **6/6 đạt**, trên cả **SQLite** và **PostgreSQL 18** — log ở `db/logs/`. (v0.5 trước đó đã chạy 87/87 trên SQLite 3.53 và PostgreSQL 16.) Ngoài ra một agent đánh giá độc lập (không viết schema) chạy bộ ca thử phá riêng — xem mục 0. Mỗi ca "bị chặn" phải khớp đúng loại lỗi mong đợi (CHECK / UNIQUE / khóa ngoại / thông báo của trigger) — tránh đạt giả do sai số cột hay sai cú pháp.
 
 ## Các file
 
@@ -11,8 +12,12 @@
 | `schema.sql` | 27 bảng, ràng buộc, index, 12 view dùng chung (SQL chuẩn) |
 | `triggers_sqlite.sql` / `triggers_postgres.sql` | **Sinh bởi `gen_triggers.py`.** Chỉ ghi thêm (kể cả bảng cấu hình), chặn ghi đè, số bản tăng đúng 1, đóng chu kỳ, khóa lô đất/nông hộ, loại lô đầu ra, cạnh lô, lô thu hoạch, luật xác minh |
 | `views_sqlite.sql` / `views_postgres.sql` | **Sinh bởi `gen_views.py`.** 5 view có phép so ngày: lịch dự kiến, độ đầy đủ chu kỳ, trạng thái lô, vi phạm cách ly, kiểm nhất quán |
-| `smoke_test.py` | 87 kiểm tra: `python3 smoke_test.py sqlite` hoặc `postgres` |
-| `pg_load.sh` | Nạp vào PostgreSQL tạm để kiểm |
+| `run_scenarios.py` | **Bản chính cho K1–K6** (minh chứng E3, E4): `python run_scenarios.py lac` (SQLite) hoặc `lac --pg` (PostgreSQL); `--log <file>` ghi log UTF-8 |
+| `seed_me.sql`, `seed_lac.sql` | Bộ mock cho K1–K6: 3 hộ mè + chu kỳ chưa có ngày gieo; hộ D trồng lạc (chỉ INSERT) |
+| `smoke_test.py` | 87 kiểm tra hồi quy: `python smoke_test.py sqlite` hoặc `postgres` |
+| `dbtools.py` | Kết nối dùng chung SQLite / PostgreSQL (qua `psql`, cấu hình `db/.env`, mẫu `db/.env.example`) và ghi log UTF-8 |
+| `logs/` | Log kết quả chạy thật — Evidence Board dẫn thẳng tới đây |
+| `pg_load.sh` | Bản cũ chỉ chạy trên Linux, còn dùng cho `review/review_tests.py`; kiểm thử chính dùng `dbtools.py` |
 | `gen_diagram.py` | **Sinh class diagram tự động từ `schema.sql`** → sơ đồ không lệch SQL |
 | `class_diagram.png` + `cd_1_canh_tac.png`, `cd_2_lo.png`, `cd_3_minh_chung_xac_minh.png` | Sơ đồ đầy đủ (phụ lục) + 3 sơ đồ con (chương thiết kế) |
 
@@ -252,17 +257,162 @@ Mỗi bản ghi nhập vào biết đến từ đâu (`source_channel`) và mã 
 
 | Tiêu chí | View | Kiểm tra |
 |---|---|---|
-| O1 · 11 bước quy trình mè | `activity_type` theo `stage` | (bộ mock Việc 1) |
-| O1 · Hai trục trạng thái độc lập mỗi hoạt động (độ đầy đủ × xác minh) | `v_activity_status` | F1, F2, R4 |
-| O1 · Thêm cây lạc không sửa schema | — | F15 |
-| O1 · Hoạt động bắt buộc chưa ghi bị phát hiện | `v_cycle_expected`, `v_cycle_completeness` | F3–F5 |
-| O2 · Chai truy đúng hộ nguồn + tỷ trọng | `v_lot_sources` | F6, R1 |
+Theo sổ quyết định SD-02 (4 tiêu chí O1) và SD-03 (O2). "Biểu diễn đủ 11 bước quy trình mè" **không còn là tiêu chí O1** — đó là tiêu chí đạt của bộ mock (plan Việc 1, sau 29/11). "Xuất dữ liệu tối thiểu quốc gia" là OUT (ĐATN); bảng ánh xạ ở mục 5 chỉ là ý thiết kế.
+
+| Tiêu chí | View | Kiểm tra |
+|---|---|---|
+| O1-1 · Hai trục trạng thái độc lập mỗi hoạt động (độ đầy đủ × xác minh), tự tính | `v_activity_status` | F1, F2, R4, N17 |
+| O1-2 · Hoạt động bắt buộc chưa ghi hoặc lệch lịch bị phát hiện | `v_cycle_expected`, `v_cycle_completeness` | F3–F5, V9, V10, N9 · K3 |
+| O1-3 · Sửa hoạt động giữ bản cũ, bắt buộc lý do, minh chứng không tự chuyển | `activity_revision`, `v_activity_status` | C1, C6, F2 · K5 |
+| O1-4 · Thêm cây chỉ bằng dữ liệu cấu hình, chạy đủ một chu kỳ | mọi view, không DDL | **K6** (`run_scenarios.py`, hộ D lạc) |
+| O1 · Bị từ chối tính là chưa đạt | `v_activity_status`, `v_lot_event_status` | V4, R5 · K4 |
+| O2 · Chai truy đúng hộ nguồn + tỷ trọng | `v_lot_sources` | F6, R1 · K1, K2 |
+| O2 · Phần không truy được phải hiện ra | `v_lot_status` | R1, N1, N2 |
 | O2 · Truy xuôi (thu hồi) | `v_lot_destinations` | F8 |
 | O2 · Trạng thái lô trên trang QR | `v_lot_status` | F7, R1b |
 | Bổ sung · Vi phạm cách ly | `v_phi_violations` | F10 |
 | Bổ sung · Nhất quán | `v_integrity_issues` | F11 |
 
-## 7. Kết quả kiểm tra (87/87 trên SQLite và PostgreSQL)
+## 6A. Định nghĩa và quy tắc đã chốt (28/11)
+
+### 6A.1 Độ đầy đủ minh chứng — 4 cấp (SD-07)
+
+Thước đo của O1. Hệ thống **tự tính**; không có cột nào cho người dùng tự điền.
+
+| Cấp | View | Quy tắc | Giá trị |
+|---|---|---|---|
+| 1 · Hoạt động | `v_activity_status` | ĐỦ khi với **mọi** `evidence_requirement` của loại hoạt động: số file khác nhau (cùng `sha256` chỉ tính 1), đúng loại, gắn vào **bản ghi hiện hành** ≥ `min_count`; nếu `uses_inputs = 1` thì phải ghi vật tư | `complete` · `missing_evidence` · `missing_inputs` |
+| 2 · Sự kiện lô | `v_lot_event_status` | Cùng luật cho gộp / ép / đóng gói. Loại sự kiện không có yêu cầu → `not_required` | `complete` · `missing_evidence` · `not_required` |
+| 3 · Chu kỳ canh tác | `v_cycle_completeness` | `completeness_ratio` = (hoạt động **bắt buộc đã đến hạn**, đủ minh chứng, không bị từ chối) / (hoạt động bắt buộc đã đến hạn). `cycle_state = complete` khi không thiếu hoạt động nào, tất cả đủ minh chứng, không có gì bị từ chối, và hoạt động không bắt buộc đã ghi cũng đủ. Chưa có ngày gieo → `undetermined` (không tính là thiếu) | `complete` · `incomplete` · `undetermined` |
+| 4 · Lô thành phẩm | `v_lot_status` | `complete_share` = % khối lượng lô đến từ các chu kỳ `complete` | 0–1 |
+
+Xác minh là **trục riêng** (`verification_state`, `all_verified`, `verified_share`); đúng/lệch lịch cũng tách riêng (`on_schedule_ratio`).
+
+**Giới hạn (ghi trong báo cáo):** chỉ đo *đủ số lượng đúng loại*, không đo minh chứng có đúng sự thật (`captured_at` chưa được so với ngày làm hoạt động); mọi ngưỡng `evidence_requirement` hiện là giả định nhóm (`is_assumption = 1`); hoạt động có điều kiện mà nông dân không ghi thì không phát hiện được; "đủ minh chứng" ≠ "đáng tin" — chỉ số độ tin cậy để ĐATN.
+
+### 6A.2 Nhãn hiển thị từ hai trục (SD-13)
+
+Lõi lưu 2 trục độc lập, **không lưu nhãn**. Một view duy nhất trong lõi — `v_activity_display_state` — ánh xạ ra nhãn để trang QR, web nhà đầu tư và mọi bên gọi vào hiện giống nhau. Xét từ trên xuống, gặp dòng đúng thì dừng:
+
+| # | Điều kiện | Nhãn |
+|---|---|---|
+| 1 | Kết luận xác minh hiệu lực = `rejected` | **Bị từ chối** |
+| 2 | `missing_evidence` hoặc `missing_inputs` | **Thiếu minh chứng** |
+| 3 | `complete` và `verified` | **Đã xác minh** |
+| 4 | `complete` và `unverified` | **Tự khai, chưa xác minh** |
+
+Trường hợp đặc biệt (R4): đã xác minh nhưng 0 minh chứng → rơi vào dòng 2, hiện "Thiếu minh chứng", vì trang QR phải thể hiện trung thực độ đầy đủ. Lý do không lưu 4 trạng thái: có tổ hợp thang 4 trạng thái không biểu diễn được (R4). *Trạng thái: quy tắc chốt; view cài sau 29/11, trước trang QR.*
+
+### 6A.3 Hiển thị "bị từ chối" trên trang QR (SD-12)
+
+- Hiện nhãn **"Bị từ chối"** kèm tên hoạt động và ngày.
+- Hiện **vai trò** người xác minh (`agent.role`, vd "kỹ thuật viên"), không hiện tên.
+- **Không** hiện `verification.note` — ghi chú nội bộ.
+- `activity_type.public_level = 'private'` → chỉ hiện *số lượng* hoạt động bị từ chối, không hiện chi tiết.
+
+### 6A.4 Rút lại liên kết minh chứng gắn nhầm (SD-10)
+
+`evidence_link` chỉ ghi thêm và `verification` xác minh cả bản ghi, nên hiện không sửa được một ảnh gắn nhầm. Thiết kế:
+
+- Bảng mới **`evidence_link_retraction`** (chỉ ghi thêm): `retraction_id`, `link_id` → `evidence_link.link_id` (UNIQUE — mỗi liên kết rút tối đa một lần), `retracted_by` → `agent`, `retracted_at`, `reason` (NOT NULL), `replacement_link_id` (tùy chọn) → `evidence_link.link_id`.
+- `v_activity_status` và `v_lot_event_status` chỉ đếm liên kết **chưa bị rút** → độ đầy đủ tự tính lại.
+- `v_integrity_issues` thêm cảnh báo `verified_then_evidence_retracted`: bản ghi đã xác minh nhưng sau đó minh chứng bị rút.
+- Trigger/view sửa trong `gen_triggers.py` / `gen_views.py`, không sửa tay file SQL. *Trạng thái: thiết kế chốt; cài đặt sau 29/11.*
+
+### 6A.5 Dạng của lõi: dịch vụ trung tâm (SD-06)
+
+Định hướng: **dịch vụ trung tâm**, các hệ thống khác (trang QR, Story, dashboard) gọi vào qua API. Lý do: truy xuất đi xuyên nhiều tổ chức (hộ → thu mua → nhà máy → thương hiệu); nếu mỗi nơi giữ database riêng (thư viện nhúng), chuỗi lô đứt ở ranh giới tổ chức. Luật nghiệp vụ đang nằm trong trigger của database → hợp với một nơi lưu trung tâm sở hữu luật. Đánh đổi: phải vận hành dịch vụ, có xác thực, phụ thuộc mạng. ĐACN chỉ ghi định hướng và danh sách API (6B); hiện thực dịch vụ hoàn chỉnh để ĐATN (SD-05).
+
+## 6B. Danh sách API truy xuất (D2)
+
+Mô tả đề tài #6 yêu cầu ĐACN *thiết kế* schema/API. Mỗi endpoint đọc từ đúng **một view của lõi** (QĐ19: không để mỗi API tự ghép). Chỉ đọc; tham số là `public_code` in trên QR, **không bao giờ** lộ `lot_id` (QĐ15).
+
+| # | Endpoint | Ai dùng | Đọc từ | Trả về |
+|---|---|---|---|---|
+| A1 | `GET /v1/lots/{public_code}` | Trang QR (công khai) | `v_lot_current`, `v_lot_status` | Tên sản phẩm, quy cách; `traced_share`, `untraceable_share`, `complete_share`, `verified_share`, `undetermined_share`; `trace_state`, `chain_evidence_state` |
+| A2 | `GET /v1/lots/{public_code}/sources` | Trang QR (công khai) | `v_lot_sources` + `farm` (chỉ `province`, `commune`) + `v_cycle_completeness` | Từng hộ nguồn: tỷ lệ góp, `source_status`, `cycle_state`, `completeness_ratio` |
+| A3 | `GET /v1/lots/{public_code}/timeline` | Trang QR (công khai) | `v_lot_timeline` + `v_activity_display_state`, lọc theo `public_level` | Sự kiện theo thời gian kèm nhãn hiển thị (6A.2); quy tắc "bị từ chối" theo 6A.3 |
+| A4 | `GET /v1/lots/{public_code}/destinations` | F&S (nội bộ, thu hồi) | `v_lot_destinations` | Mọi lô con / chai đã dùng lô này |
+| A5 | `GET /v1/cycles/{cycle_id}/completeness` | F&S, nhà đầu tư (nội bộ) | `v_cycle_completeness`, `v_cycle_expected`, `v_phi_violations` | Tỷ lệ đủ minh chứng, đúng lịch; danh sách hoạt động thiếu / lệch lịch; vi phạm cách ly |
+| A6 | `GET /v1/activities/{activity_id}` | F&S, kỹ thuật viên (nội bộ) | `v_activity_status`, `activity_revision`, `evidence_link`, `v_verification_effective` | Hai trục trạng thái, lịch sử bản sửa kèm lý do, minh chứng gắn với từng bản |
+| A7 | `GET /v1/integrity-issues` | F&S (nội bộ) | `v_integrity_issues` | Danh sách bất nhất quán liên bảng |
+
+**Mã lỗi** (dùng chung):
+
+| Mã | Khi nào | Trang QR hiện |
+|---|---|---|
+| `400 INVALID_CODE` | `public_code` sai định dạng | "Mã không hợp lệ" |
+| `404 LOT_NOT_FOUND` | Không có lô mang mã này | "Không tìm thấy sản phẩm — có thể là mã giả" |
+| `503 UNAVAILABLE` | CSDL / dịch vụ không phản hồi | "Hệ thống đang bận, thử lại sau" |
+
+Lô **có** nhưng không truy được **không phải lỗi**: trả `200` với `trace_state = untraceable` hoặc `partially_untraceable`, và trang hiện rõ phần không truy được (O2).
+
+Endpoint công khai (A1–A3) không cần đăng nhập. Endpoint nội bộ (A4–A7) cần xác thực — mô hình tài khoản và phân quyền là OUT (SD-09). Ghi dữ liệu (tạo hoạt động, gắn minh chứng, xác minh) đi thẳng vào bảng với trigger hiện có; API ghi để ĐATN.
+
+## 6C. Sơ đồ tuần tự: quét QR → API → truy ngược → trang hiển thị
+
+File nguồn: `docs/diagrams/qr_sequence.mmd`. Truy vấn A1–A3 phải là truy vấn **tham số hóa cho một lô**, không quét view cho mọi lô (mục 8, dòng 7e).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor NTD as Người tiêu dùng
+    participant QR as Trang QR (web)
+    participant API as Traceability API
+    participant DB as Lõi CSDL (view)
+
+    NTD->>QR: Quét mã trên chai → mở URL /q/{public_code}
+    alt Mất mạng / không tải được trang
+        QR-->>NTD: "Không kết nối được, thử lại" (không hiện dữ liệu cũ như dữ liệu mới)
+    else Có mạng
+        QR->>API: GET /v1/lots/{public_code}
+        API->>API: Kiểm định dạng mã
+        alt Sai định dạng
+            API-->>QR: 400 INVALID_CODE
+            QR-->>NTD: "Mã không hợp lệ"
+        else Đúng định dạng
+            API->>DB: v_lot_current + v_lot_status theo public_code (truy vấn một lô)
+            alt Không có lô
+                DB-->>API: 0 dòng
+                API-->>QR: 404 LOT_NOT_FOUND
+                QR-->>NTD: "Không tìm thấy sản phẩm — có thể là mã giả"
+            else Có lô
+                DB-->>API: sản phẩm, traced/untraceable/complete/verified_share, trace_state, chain_evidence_state
+                API-->>QR: 200 tóm tắt lô
+                QR-->>NTD: Màn tóm tắt: % truy được, % đủ minh chứng, % đã xác minh; phần không truy được hiện rõ
+                opt Bấm "xem nguồn"
+                    QR->>API: GET /v1/lots/{public_code}/sources
+                    API->>DB: v_lot_sources + farm (tỉnh, xã) + v_cycle_completeness
+                    DB-->>API: hộ nguồn, tỷ lệ, trạng thái chu kỳ
+                    API-->>QR: 200 danh sách nguồn
+                    QR-->>NTD: Từng hộ: tỷ lệ góp, trạng thái chu kỳ
+                end
+                opt Bấm "xem nhật ký"
+                    QR->>API: GET /v1/lots/{public_code}/timeline
+                    API->>DB: v_lot_timeline + v_activity_display_state, lọc theo public_level
+                    DB-->>API: sự kiện theo thời gian + nhãn hiển thị
+                    API-->>QR: 200 timeline (ẩn ghi chú xác minh, ẩn tên người)
+                    QR-->>NTD: Hoạt động: Đã xác minh / Tự khai / Thiếu minh chứng / Bị từ chối
+                end
+            end
+        end
+    end
+```
+
+## 6D. Trang QR — điều kiện nghiệm thu (SD-14)
+
+Trang QR là **bắt buộc** cho ĐACN. Thứ tự làm, vì trang đọc từ các thành phần này: (1) `v_activity_display_state` (6A.2) → (2) `evidence_link_retraction` (6A.4) → (3) truy vấn tham số hóa một lô → (4) trang theo A1–A3 và 6C.
+
+**Đạt khi:** quét mã QR thật trên dữ liệu mock → màn tóm tắt (đọc trong ~30 giây, vị trí đến cấp tỉnh/xã) → bấm xem từng hộ, từng hoạt động và nhãn trạng thái; ba nhánh lỗi ở 6C hiện đúng thông báo.
+
+## 7. Kết quả kiểm tra (87/87 hồi quy + K1–K6 6/6, trên SQLite và PostgreSQL)
+
+| Bộ | Lệnh | SQLite | PostgreSQL 18 | Log |
+|---|---|---|---|---|
+| Kịch bản K1–K6 (minh chứng E3, E4) | `python run_scenarios.py lac [--pg]` | 6/6 | 6/6 | `db/logs/k1_k6_sqlite.txt`, `k1_k6_postgres.txt`, `k1_k6_sqlite_raw.txt` (kèm SQL + dữ liệu thô) |
+| Hồi quy schema | `python smoke_test.py sqlite\|postgres` | 87/87 | 87/87 | `db/logs/smoke_sqlite.txt`, `smoke_postgres.txt` |
+
+**K6 duy nhất** là hộ D trong `run_scenarios.py` / `seed_lac.sql` (gieo → bón lót → phun → thu hoạch → rang → vận chuyển → đóng gói → truy ngược QR-LAC-200). `F15` (hộ E) trong `smoke_test.py` chỉ là hồi quy cấu hình lạc, không dùng làm bằng chứng K6.
 
 v0.5 thêm nhóm **N1–N30** (hồi quy cho các phát hiện của đánh giá độc lập, mục 0). v0.4 thêm nhóm **V1–V11** (chuỗi sau thu hoạch, timeline, vụ, kênh nguồn, đúng hạn, lịch sử mốc gieo) và **C14–C20**. Phần dưới mô tả 39 kiểm tra từ v0.3, vẫn giữ nguyên.
 
@@ -273,7 +423,7 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 - **R0–R5, D1–D3 hồi quy:** đủ các ca bên đánh giá tái hiện, đều đạt.
 - **C1–C13 ràng buộc và trigger:** chỉ ghi thêm, mốc có đầu vào, tự xác minh, thay thế sai đối tượng, đơn vị, liên kết 2 đích, chứng nhận 2 phạm vi, số đo thiếu vị trí, luật thiếu nguồn, trùng mã loại hoạt động.
 
-*Đây là kiểm tra schema. Minh chứng E3 đến từ bộ mock đầy đủ (crop profile mè 11 bước) + kịch bản K1–K6.*
+*Đây là kiểm tra schema. Minh chứng E3, E4 đến từ kịch bản K1–K6 (`run_scenarios.py`) cộng các kiểm tra hồi quy được trích dẫn ở mục 6 (SD-15, SD-18). Bộ mock mè đủ 11 bước là việc sau 29/11.*
 
 ## 8. Giới hạn đã biết
 
@@ -292,16 +442,19 @@ Dữ liệu: 3 hộ ở Tây Ninh (400/350/250 kg) + một chu kỳ chưa có ng
 | 7e | Hiệu năng view tính cho mọi lô | Agent đo v0.4: `v_lot_status` 1,5 s ở 200 hộ/2.000 lô, CTE gieo một lô 0,4 ms | Trang QR dùng truy vấn tham số hóa cho một lô |
 | 8 | Luật cách ly và yêu cầu minh chứng đang là giả định | `is_assumption = 1` | **Đối chiếu nhãn thuốc thật** |
 | 9 | Sai lệch mốc ngày cho phép | `tolerance_days` | **Hỏi thầy** |
-| 10 | Mức chi tiết khi hiện "bị từ chối" trên QR | Nhóm chốt hiển thị rõ trạng thái; chưa chốt có hiện lý do/chi tiết nào | Chốt nội dung với GVHD/F&S nếu cần |
-| 11 | Tách dữ liệu theo tổ chức | Hiện `crop_profile` không có `organization_id`; cấu hình hiện dùng chung | Ngoài phạm vi hiện tại; nhắc rà lại trước khi triển khai đa tổ chức |
-| 12 | Rollback liên kết minh chứng gắn nhầm | Chưa có cơ chế; các liên kết chỉ ghi thêm | Đề xuất bảng sự kiện rút lại/thay thế có link gốc, người thực hiện, thời điểm và lý do; view loại liên kết đã rút khỏi trạng thái hiệu lực nhưng giữ lịch sử |
-| 13 | Ánh xạ hai trục trạng thái ra nhãn dùng được | Lõi giữ riêng độ đầy đủ và xác minh; nhóm yêu cầu cơ chế tính/ánh xạ trong lõi | Chưa chốt quy tắc ánh xạ và nhãn QR; QR không cần trình bày mọi tổ hợp nội bộ |
+| 10 | Mức chi tiết khi hiện "bị từ chối" trên QR | **Đã chốt (SD-12, mục 6A.3):** nhãn + hoạt động + ngày + vai trò người xác minh; không hiện ghi chú, không hiện tên | Cài cùng trang QR |
+| 11 | Tách dữ liệu theo tổ chức (SD-08) | Hiện `crop_profile` không có `organization_id`; cấu hình dùng chung. Báo cáo chỉ viết "dùng chung cho nhiều loại cây trong một chuỗi", **không** viết "an toàn cho nhiều doanh nghiệp" | Thêm `organization_id` vào `crop_profile` (stage / activity_type / evidence_requirement kế thừa qua khóa ngoại); bắt buộc rà lại trước khi triển khai đa tổ chức |
+| 12 | Rút lại liên kết minh chứng gắn nhầm | **Đã chốt thiết kế (SD-10, mục 6A.4):** bảng `evidence_link_retraction` chỉ ghi thêm | Cài đặt sau 29/11, trước trang QR |
+| 13 | Ánh xạ hai trục trạng thái ra nhãn | **Đã chốt quy tắc (SD-13, mục 6A.2):** 4 nhãn, xét từ trên xuống, một view trong lõi | Cài `v_activity_display_state` sau 29/11, trước trang QR |
+| 14 | Phân quyền ai được ghi / xác minh (SD-09) | Dữ liệu ghi rõ người làm / người ghi / người xác minh; trigger chặn tự xác minh bản ghi của mình (C4). Chưa có tài khoản, chưa kiểm soát ai gọi thao tác nào | ĐATN |
+| 15 | Loại lô / loại sự kiện lô cố định (SD-11) | `lot_type` (4 loại) và `event_type` (5 loại) cố định bằng CHECK; hoạt động canh tác thì mở rộng tự do bằng dữ liệu | Thêm loại mới phải sửa schema → ĐATN nếu cần |
 
 ## 9. Việc tiếp theo
-- Việc 1: bộ mock đầy đủ (crop profile mè 11 bước + lạc) theo v0.5.
-- Việc 2: kịch bản K1–K6 → E3; truy vấn tham số hóa cho trang QR và đo thời gian.
-- Đối chiếu nhãn thuốc thật cho luật cách ly; hỏi thầy dung sai ngày và việc hiện "bị từ chối" trên QR.
-- Khi rà thiết kế, xem lại ranh giới dữ liệu theo tổ chức (SD-08); đề xuất cơ chế rollback liên kết minh chứng gắn nhầm (SD-10); chốt quy tắc ánh xạ hai trục trạng thái (SD-13).
+- ✅ Việc 2: kịch bản K1–K6 → E3, E4 (6/6 trên SQLite và PostgreSQL, 28/11).
+- Ngay sau 29/11, theo thứ tự (mục 6D): `v_activity_display_state` (SD-13) → `evidence_link_retraction` (SD-10) → truy vấn tham số hóa một lô và đo thời gian → **trang QR** (SD-14, bắt buộc).
+- Việc 1: bộ mock mè đủ 11 bước theo quy trình Bình Thuận (hiện `seed_me.sql` có 3 loại hoạt động).
+- Đối chiếu nhãn thuốc thật cho luật cách ly; hỏi thầy dung sai ngày (`tolerance_days`).
+- Khi rà thiết kế trước triển khai đa tổ chức: xem lại SD-08.
 
 ## 10. Câu hỏi hội đồng dự kiến
 

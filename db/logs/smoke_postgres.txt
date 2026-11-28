@@ -1,0 +1,100 @@
+
+=== postgres ===
+F · Chức năng
+  [ĐẠT] F1 hộ A bón thúc: đủ minh chứng + đã xác minh — ('complete', 'verified')
+  [ĐẠT] F2 hộ B sửa liều, chưa liên kết lại ảnh → thiếu minh chứng — ('missing_evidence', 'unverified')
+  [ĐẠT] F3 hộ C không ghi bón thúc → bị phát hiện 'not_recorded' — not_recorded
+  [ĐẠT] F4 chu kỳ chưa có ngày gieo → 'undetermined', không phải 'thiếu' — undetermined
+  [ĐẠT] F5 trạng thái chu kỳ A/B/C/C2 — A=complete, B=incomplete, C=incomplete, C2=undetermined
+  [ĐẠT] F6 truy ngược QR-80 theo số lượng thực dùng — [('H-A', 0.4, 'harvest'), ('H-B', 0.35, 'harvest'), ('H-C', 0.25, 'harvest')]
+  [ĐẠT] F7 trạng thái lô QR-80: 100% truy được, 40% từ chu kỳ đủ minh chứng — traced=1.0, complete=0.4, verified=0.0, state=fully_traced
+  [ĐẠT] F8 truy xuôi từ lô thu hoạch H-A tới các lô chai — ['PROC-01', 'QR-250', 'QR-80', 'RAW-01']
+  [ĐẠT] F9 sự kiện gộp lô có trạng thái minh chứng + xác minh riêng — ('complete', 'verified')
+  [ĐẠT] F10 phát hiện vi phạm cách ly (theo cây trồng) — [('th_a', 'Thuốc X', 5.0, '7')]
+  [ĐẠT] F11 kiểm tra nhất quán: thuốc Y chưa có luật cách ly cho mè — [('missing_phi_rule', 'ph_b_r1'), ('over_consumption', 'raw')]
+  [ĐẠT] F12 sửa khối lượng lô có lý do, giữ bản cũ — ('2', '995', 'Cân lại sau khi sàng')
+  [ĐẠT] F13 thiết bị chuyển chỗ, số đo cũ vẫn giữ vị trí lúc đo — observation ở pa, thiết bị hiện ở pb
+  [ĐẠT] F14 chứng nhận hết hạn trước ngày thu hoạch
+  [ĐẠT] F15 hồi quy cấu hình lạc (Hộ E): chu kỳ đầy đủ, lô truy được, 0 DDL — bằng chứng K6 ở run_scenarios.py — src=[('he', '1.0', 'harvest')], cycle=('complete', '1.00000000000000000000'), act=('complete', 'verified'), noDDL=True
+
+V · Bổ sung v0.4 (đánh giá vòng 3)
+  [ĐẠT] V1 chuỗi sau thu hoạch QR-80: 4 sự kiện, đủ minh chứng — ('complete', '4', '0')
+  [ĐẠT] V2 ép dầu thiếu ảnh → trang QR báo chuỗi 'incomplete' (trước đây vẫn fully_traced) — ('incomplete', '1', 'fully_traced')
+  [ĐẠT] V3 bổ sung ảnh ép dầu → chuỗi 'complete' — complete
+  [ĐẠT] V4 QA từ chối sự kiện ép dầu → chuỗi 'rejected' — ('rejected', '1')
+  [ĐẠT] V5 timeline QR-80 hợp nhất 6 loại (v0.5 thêm lot_revision) — 25 dòng: ['activity', 'cycle_anchor', 'lot_event', 'lot_revision', 'observation', 'verification']
+  [ĐẠT] V6 timeline sắp theo thời gian: bắt đầu từ mốc gieo, kết thúc ở đóng chai — đầu=('cycle_anchor', 'an_a1'), cuối=('lot_event', 'e_b80')
+  [ĐẠT] V7 vụ là thực thể: truy vấn mọi chu kỳ của vụ Đông Xuân — 4 chu kỳ
+  [ĐẠT] V8 số đo ghi rõ kênh nguồn và mã ngoài — ('iot_gateway', 'GW-0001')
+  [ĐẠT] V9 chiều đúng hạn tách riêng: chu kỳ A 100% đúng lịch — ('1.00000000000000000000', 'complete')
+  [ĐẠT] V10 đổi mốc gieo có lý do: giữ lịch sử, lịch tính lại, đúng hạn rơi về 0% — đúng hạn=0.0, minh chứng=complete, lệch lịch=2, lịch sử=2 bản
+  [ĐẠT] V11 chu kỳ đang mở được đóng một lần
+
+R · Hồi quy các lỗi bên đánh giá đã tái hiện
+  [ĐẠT] R0 chặn: khóa ngoại được kiểm (hoạt động trỏ chu kỳ không tồn tại) — insert or update on table "activity" violates foreign key constraint "activity_cycle_id_fk
+  [ĐẠT] R1 nguồn không truy được được HIỆN RA, không bị bỏ — [('H-A', 0.6, 'harvest'), ('P1', 0.4, 'untraceable')]
+  [ĐẠT] R1b trạng thái lô ghi rõ 40% không truy được — ('0.40000000000000000000', 'partially_untraceable')
+  [ĐẠT] R2 chặn: thêm cạnh tạo vòng (RAW-01 làm đầu vào của chính nguồn của nó) — lot_input: tạo vòng trong đồ thị lô
+  [ĐẠT] R3 chặn: liên kết cùng một file 2 lần vào cùng bản ghi — duplicate key value violates unique constraint "uq_link_actrev"
+  [ĐẠT] R4 đã xác minh nhưng 0 minh chứng: hai cột hiển thị riêng — ('missing_evidence', 'verified')
+  [ĐẠT] R5a chặn: xác minh thứ hai không thay thế lần trước — verification: đã có kết luận hiệu lực, lần mới phải thay thế nó
+  [ĐẠT] R5b kiểm tra lại có ghi rõ thay thế: kết luận hiệu lực + giữ lịch sử — verified, 2 lần trong lịch sử
+  [ĐẠT] D1 chặn: hai lô cùng một hoạt động thu hoạch — duplicate key value violates unique constraint "lot_harvest_activity_id_key"
+  [ĐẠT] D2 chặn: lô thu hoạch trỏ vào hoạt động không phải thu hoạch — lot: hoạt động sinh lô phải là loại thu hoạch (produces_lot = 1)
+  [ĐẠT] D3 chặn: hai sự kiện cùng tạo ra một lô — duplicate key value violates unique constraint "lot_event_output_lot_id_key"
+
+C · Ràng buộc và trigger
+  [ĐẠT] C1 chặn: UPDATE bản ghi hoạt động (chỉ ghi thêm) — append-only: activity_revision không cho UPDATE
+  [ĐẠT] C2 chặn: DELETE minh chứng (chỉ ghi thêm) — append-only: evidence không cho DELETE
+  [ĐẠT] C3 chặn: mốc vận chuyển có đầu vào — lot_input: mốc thu mua/vận chuyển không có đầu vào
+  [ĐẠT] C4 chặn: nông dân tự xác minh bản ghi của mình — verification: người xác minh trùng người làm/người ghi
+  [ĐẠT] C5 chặn: thay thế xác minh của đối tượng khác — verification: chỉ được thay thế xác minh của cùng đối tượng
+  [ĐẠT] C6 chặn: bản sửa hoạt động không có lý do — new row for relation "activity_revision" violates check constraint "activity_revision_chec
+  [ĐẠT] C7 chặn: đơn vị ngoài danh mục — new row for relation "lot_input" violates check constraint "lot_input_unit_check"
+  [ĐẠT] C8 chặn: số lượng thiếu đơn vị — new row for relation "lot_input" violates check constraint "lot_input_check"
+  [ĐẠT] C9 chặn: minh chứng gắn 2 đối tượng một lúc — new row for relation "evidence_link" violates check constraint "evidence_link_check"
+  [ĐẠT] C10 chặn: chứng nhận gắn 2 phạm vi — new row for relation "certification" violates check constraint "certification_check1"
+  [ĐẠT] C11 chặn: số đo cảm biến không ghi vị trí — new row for relation "observation" violates check constraint "observation_check1"
+  [ĐẠT] C12 chặn: luật cách ly không có nguồn — null value in column "rule_source" of relation "material_crop_rule" violates not-null cons
+  [ĐẠT] C13 chặn: hai loại hoạt động trùng mã trong một giai đoạn — duplicate key value violates unique constraint "activity_type_stage_id_code_key"
+  [ĐẠT] C14 chặn: đổi lặng lẽ cây trồng của chu kỳ — cultivation_cycle: chỉ được cập nhật closed_at; mốc lịch sửa qua cycle_anchor
+  [ĐẠT] C15 chặn: sửa mốc gieo không có lý do — new row for relation "cycle_anchor" violates check constraint "cycle_anchor_check"
+  [ĐẠT] C16 chặn: UPDATE lịch sử mốc gieo — append-only: cycle_anchor không cho UPDATE
+  [ĐẠT] C17 chặn: nạp trùng mã ngoài từ cùng kênh — duplicate key value violates unique constraint "uq_ext_observation"
+  [ĐẠT] C18 chặn: kênh nguồn ngoài danh mục — new row for relation "observation" violates check constraint "observation_source_channel_c
+  [ĐẠT] C19 chặn: minh chứng cảm biến không có số đo — new row for relation "evidence" violates check constraint "evidence_check1"
+  [ĐẠT] C20 chặn: xóa chu kỳ canh tác — cultivation_cycle: không cho DELETE
+
+N · Hồi quy v0.5 (đánh giá độc lập vòng 4)
+  [ĐẠT] N1 đóng gói chưa ghi đầu vào → 'untraceable' (trước: fully_traced) — ('untraceable', '1.0', '0')
+  [ĐẠT] N2 40% từ lô có sự kiện rỗng → hiện 40% không truy được — ('partially_untraceable', '0.40000000000000000000')
+  [ĐẠT] N3 chặn: sự kiện gộp ghi đầu ra là lô thu hoạch (tỷ trọng từng lên 200%) — lot_event: loại lô đầu ra không khớp loại sự kiện
+  [ĐẠT] N4 chặn: UPSERT đổi kết luận xác minh — append-only: verification không cho UPDATE
+  [ĐẠT] N5 chặn: UPSERT đổi khối lượng cạnh lô (đổi tỷ trọng QR) — append-only: lot_input không cho UPDATE
+  [ĐẠT] N6 chặn: TRUNCATE bảng chỉ ghi thêm — append-only: verification không cho TRUNCATE
+  [ĐẠT] N7 chặn: dời ngày đóng chu kỳ đã đóng (từng biến 'thiếu' thành 'chưa đến hạn') — cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at
+  [ĐẠT] N8 chặn: mở lại chu kỳ đã đóng — cultivation_cycle: chu kỳ đã đóng, không đổi hoặc mở lại closed_at
+  [ĐẠT] N9 chu kỳ đã đóng: việc chưa ghi là 'not_recorded', không bao giờ 'not_due' — not_recorded
+  [ĐẠT] N10 chặn: đóng chu kỳ trước ngày hoạt động cuối — cultivation_cycle: closed_at trước ngày hoạt động cuối của chu kỳ
+  [ĐẠT] N11 chặn: đổi khóa chính chu kỳ — cultivation_cycle: chỉ được cập nhật closed_at; mốc lịch sửa qua cycle_anchor
+  [ĐẠT] N12 hoạt động có điều kiện thiếu minh chứng → chu kỳ 'incomplete' — ('incomplete', '1')
+  [ĐẠT] N13 chặn: hạ hoạt động bắt buộc thành tùy chọn (đổi kết luận cũ) — append-only: activity_type không cho UPDATE
+  [ĐẠT] N14 chặn: xóa yêu cầu minh chứng — append-only: evidence_requirement không cho DELETE
+  [ĐẠT] N15 chặn: chuyển lô đất sang hộ khác — plot: không đổi định danh, hộ sở hữu hoặc mã lô đất
+  [ĐẠT] N16 chặn: đổi chủ hộ — farm: không đổi định danh hoặc chủ hộ
+  [ĐẠT] N17 cần 2 ảnh, tải cùng một file 2 lần → vẫn thiếu — missing_evidence
+  [ĐẠT] N18 dùng quá khối lượng lô PROC (200+200+300+5 > 400 l) được báo
+  [ĐẠT] N19 đóng chai (01/01) trước khi ép dầu (20/02) được báo
+  [ĐẠT] N20 chặn: thêm đầu vào hồi tố vào sự kiện ép dầu khi dầu đã đóng chai — lot_input: lô đầu ra đã được dùng tiếp, không thêm đầu vào hồi tố
+  [ĐẠT] N21 chặn: thêm đầu vào vào sự kiện đã được xác minh — lot_input: sự kiện đã được xác minh, không thêm đầu vào
+  [ĐẠT] N22 chặn: số bản mốc gieo nhảy cóc — cycle_anchor: revision_no phải tăng đúng 1
+  [ĐẠT] N23 hoạt động trước ngày bắt đầu chu kỳ được cảnh báo
+  [ĐẠT] N24 chặn: bản ghi kênh 'import' không có mã ngoài — new row for relation "activity" violates check constraint "activity_check"
+  [ĐẠT] N25 lô từ chu kỳ chưa có mốc gieo: tách riêng undetermined_share — ('1.0', '0')
+  [ĐẠT] N26 lô mồ côi → 'no_source_event' (trước: no_post_harvest_events) — no_source_event
+  [ĐẠT] N27 mốc vận chuyển không có yêu cầu → 'not_required' (không phải 'complete') — not_required
+  [ĐẠT] N28 số đo trong ngày đóng chu kỳ có trên timeline — 1 dòng
+  [ĐẠT] N29 timeline có xác minh bản ghi lô và lần sửa lô — {'ver_lab': 'lot_revision', 'raw_r2': 'lot_corrected'}
+  [ĐẠT] N30 xác minh của bản ghi cũ được ghi nhãn 'bản ghi cũ' — activity (bản ghi cũ)
+
+Tổng (postgres): 87/87 đạt

@@ -3,3 +3,5 @@ __pycache__/
 *.db
 *.sqlite
 .DS_Store
+docs/_tham_khao/
+.env

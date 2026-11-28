@@ -1,53 +1,29 @@
-"""Kiểm tra schema v0.5 — chạy cùng một bộ dữ liệu trên SQLite và PostgreSQL.
+"""Bộ kiểm tra hồi quy schema v0.5 (87 kiểm tra) — cùng một bộ dữ liệu trên SQLite và PostgreSQL.
 
-    python3 smoke_test.py sqlite
-    python3 smoke_test.py postgres     # cần PostgreSQL tạm: ./pg_load.sh (dùng socket /tmp/pg, cổng 5544)
+Kịch bản trình bày K1–K6 (minh chứng E3, E4) nằm ở run_scenarios.py. File này giữ các
+kiểm tra mà sổ quyết định trích dẫn cho tiêu chí O1/O2 (F1–F7, R1, R4, N1, N2, N9, N17, V9,
+V10, C1, C4, C6…).
+
+    python smoke_test.py sqlite
+    python smoke_test.py postgres                       # cấu hình ở db/.env
+    python smoke_test.py postgres --log logs/smoke_postgres.txt
 
 Nhóm kiểm tra:
   F  — chức năng (trạng thái, độ đầy đủ, truy ngược/xuôi, cách ly, cảm biến, chứng nhận)
   R  — hồi quy cho các lỗi bên đánh giá đã tái hiện (R0–R5, D1–D3)
   C  — ràng buộc và trigger phải chặn dữ liệu sai
+  V, N — bổ sung v0.4, v0.5
 """
-import sqlite3, subprocess, sys, pathlib
+import sys, pathlib
+
+from dbtools import DBError, connect, setup_output
 
 HERE = pathlib.Path(__file__).parent
-DIALECT = sys.argv[1] if len(sys.argv) > 1 else "sqlite"
+_ARGV = setup_output(sys.argv)
+DIALECT = "postgres" if len(_ARGV) > 1 and _ARGV[1] in ("postgres", "pg", "--pg") else "sqlite"
 T = "2026-11-25T08:00:00"
 
-class DBError(Exception):
-    pass
-
-class SQLite:
-    def __init__(self):
-        self.db = sqlite3.connect(":memory:")
-        self.db.execute("PRAGMA foreign_keys = ON")
-        for f in ("schema.sql", "triggers_sqlite.sql", "views_sqlite.sql"):
-            self.db.executescript((HERE / f).read_text(encoding="utf-8"))
-    def run(self, sql):
-        try:
-            return [tuple(r) for r in self.db.execute(sql).fetchall()]
-        except (sqlite3.IntegrityError, sqlite3.OperationalError) as e:
-            raise DBError(str(e))
-
-class Postgres:
-    CMD = ["psql", "-h", "/tmp/pg", "-p", "5544", "-U", "postgres", "-d", "postgres",
-           "-v", "ON_ERROR_STOP=1", "-tA", "-F", "\x1f", "-q"]
-    def __init__(self):
-        r = subprocess.run([str(HERE / "pg_load.sh")], capture_output=True, text=True)
-        if r.returncode != 0:
-            sys.exit("Không nạp được PostgreSQL:\n" + r.stdout + r.stderr)
-    def run(self, sql):
-        r = subprocess.run(self.CMD, input=sql, capture_output=True, text=True)
-        if r.returncode != 0:
-            raise DBError(r.stderr.strip())
-        rows = []
-        for line in r.stdout.splitlines():
-            if line == "":
-                continue
-            rows.append(tuple(None if v == "" else v for v in line.split("\x1f")))
-        return rows
-
-db = SQLite() if DIALECT == "sqlite" else Postgres()
+db = connect(DIALECT)
 
 def q(v):
     return "NULL" if v is None else "'" + str(v).replace("'", "''") + "'"
@@ -229,9 +205,52 @@ cv = db.run("SELECT CASE WHEN c.valid_from <= '2027-02-10' AND '2027-02-10' <= c
             "FROM certification c WHERE c.cert_number = 'VG-123'")[0][0]
 check("F14", "chứng nhận hết hạn trước ngày thu hoạch", str(cv) == "0")
 ins("crop_profile", "cp_lac", "PEANUT", "Lạc (mock)", 1, "sowing", None, "mock", "2026-01-01")
-ins("stage", "st_lac", "cp_lac", 1, "Thu hoạch")
-ins("activity_type", "at_lac", "st_lac", "HARVEST", "Nhổ, phơi, tách vỏ", "mandatory", 100, 7, 1, 0, None, "summary", "mock", 1)
-check("F15", "thêm cây lạc chỉ bằng dữ liệu", True, "3 INSERT, 0 lệnh DDL")
+ins("stage", "st_lac_cs2", "cp_lac", 1, "Chăm sóc")
+ins("stage", "st_lac_th2", "cp_lac", 2, "Thu hoạch")
+ins("activity_type", "at_lac_bl2", "st_lac_cs2", "BASE_FERT", "Bón lót", "mandatory", 10, 3, 0, 1, None, "detail", "mock", 1)
+ins("activity_type", "at_lac_th2", "st_lac_th2", "HARVEST",   "Nhổ, phơi, tách vỏ", "mandatory", 90, 10, 1, 0, None, "summary", "mock", 1)
+ins("evidence_requirement", "er_lac_bl2", "at_lac_bl2", None, "photo",         1, "mock", 1)
+ins("evidence_requirement", "er_lac_th2", "at_lac_th2", None, "weighing_slip", 1, "mock", 1)
+ins("material_crop_rule", "m_ure", "PEANUT", 0, "mock", 1)
+# Hộ E — chu kỳ lạc đầy đủ
+ins("agent", "u_e", "person", "Hộ E (lạc mock)", "farmer", None, T)
+ins("season", "ss_lac_k6", "u_fns", "Vụ lạc K6", "PEANUT", "2026-04-01", "2026-08-31", "u_fns", T)
+ins("farm", "fe", "u_e", "Hộ E", "Tây Ninh", "Lương Hòa", None, "u_fns", T)
+ins("plot", "pe", "fe", "L1", 3000, None, None, "u_fns", T)
+ins("cultivation_cycle", "ce", "pe", "cp_lac", None, "ss_lac_k6", "2026-04-10", "2026-07-30", "u_fns", T)
+ins("cycle_anchor", "an_e1", "ce", 1, "2026-04-15", "u_e", T, None)
+# bón lót có ảnh
+r_bl = activity("bl_e", "ce", "at_lac_bl2", "u_e", "2026-04-25", [("m_ure", 20, "kg")])
+evidence("photo", "activity_revision_id", r_bl)
+verify("ver_bl_e", "activity_revision_id", r_bl, "u_ktv", "verified")
+# thu hoạch có phiếu cân → sinh lô
+r_th = activity("th_e", "ce", "at_lac_th2", "u_e", "2026-07-14")
+evidence("weighing_slip", "activity_revision_id", r_th)
+ins("lot", "he", "H-E-LAC", "harvest", "th_e", "u_fns", T, "app", None)
+ins("lot_revision", "he_r1", "he", 1, "Lạc tươi", 300, "kg", None, None, "u_fns", T, None)
+# truy ngược lô thu hoạch lạc
+_lac_src = db.run("SELECT source_lot_id, share, source_status FROM v_lot_sources WHERE root_lot_id = 'he'")
+_lac_cycle = db.run("SELECT cycle_state, completeness_ratio FROM v_cycle_completeness WHERE cycle_id = 'ce'")
+_lac_act   = db.run("SELECT evidence_completeness, verification_state FROM v_activity_status WHERE activity_id = 'bl_e'")
+_tables    = db.tables()
+_base_tables = {
+    "agent","facility","crop_profile","variety","stage","activity_type",
+    "evidence_requirement","input_material","material_crop_rule",
+    "farm","plot","season","cultivation_cycle","cycle_anchor",
+    "activity","activity_revision","activity_input",
+    "device","observation","evidence","evidence_link",
+    "lot","lot_revision","lot_event","lot_input",
+    "certification","verification"
+}
+_no_extra_ddl = (_tables - _base_tables) == set()
+_lac_ok = (
+    len(_lac_src) == 1 and _lac_src[0][0] == "he" and num(_lac_src[0][1]) == 1.0
+    and _lac_cycle and _lac_cycle[0][0] == "complete"
+    and _lac_act   and _lac_act[0]   == ("complete", "verified")
+    and _no_extra_ddl
+)
+check("F15", "hồi quy cấu hình lạc (Hộ E): chu kỳ đầy đủ, lô truy được, 0 DDL — bằng chứng K6 ở run_scenarios.py", _lac_ok,
+      f"src={_lac_src}, cycle={_lac_cycle[0] if _lac_cycle else '?'}, act={_lac_act[0] if _lac_act else '?'}, noDDL={_no_extra_ddl}")
 
 print("\nV · Bổ sung v0.4 (đánh giá vòng 3)")
 cs = db.run("SELECT chain_evidence_state, n_chain_events, n_chain_missing_evidence FROM v_lot_status WHERE public_code = 'QR-80'")[0]

@@ -17,6 +17,24 @@ Kiểm tra: <số đạt>/<tổng> trên SQLite và PostgreSQL
 
 ---
 
+## [v0.5.1] — 2026-11-28 — nhóm chốt sổ quyết định SD-01…SD-18; ghi nhận họp với thầy (QR bắt buộc)
+Kiểm tra: smoke_test 87/87 và K1–K6 6/6, trên SQLite và PostgreSQL 18 (log ở `db/logs/`). Schema không đổi.
+### Sửa lỗi
+- K6 trước đây có hai bản: `F15` (hộ E, chỉ tới lô thu hoạch) và hộ D trong `run_scenarios.py`. Chốt **hộ D là bằng chứng K6 duy nhất**; `F15` giữ làm hồi quy cấu hình.
+- `smoke_test.py postgres` không chạy được trên Windows (`pg_load.sh` dùng đường dẫn Linux). Thay bằng `db/dbtools.py`: kết nối qua `psql`, cấu hình ở `db/.env` (mẫu `.env.example`), database kiểm thử `*_test` bị xóa và tạo lại mỗi lần chạy. `F15` không còn dùng `sqlite_master`.
+- Log chuyển hướng bằng PowerShell bị lỗi font (UTF-16 / sai bảng mã). Thêm `--log <file>`: script tự ghi UTF-8.
+### Thay đổi thiết kế
+- `run_scenarios.py` là bản chính cho K1–K6, chạy được SQLite và PostgreSQL (`--pg`). Kiểm tra "UPDATE bị chặn" ở K5 giờ đòi đúng thông báo của trigger chỉ-ghi-thêm.
+- `D1_D2_schema_design.md`: thêm 6A (độ đầy đủ 4 cấp — SD-07; nhãn hiển thị — SD-13; "bị từ chối" trên QR — SD-12; rút lại liên kết — SD-10; dịch vụ trung tâm — SD-06), 6B danh sách API A1–A7 + mã lỗi, 6C sơ đồ tuần tự quét QR (`docs/diagrams/qr_sequence.mmd`), 6D điều kiện nghiệm thu trang QR. Mục 6 bỏ "11 bước" khỏi tiêu chí O1 (SD-02).
+- SD-14 chốt: trang QR là điều kiện nghiệm thu (họp với thầy; mô tả đề tài #6).
+### Hoãn / giới hạn
+- `v_activity_display_state` (SD-13) và `evidence_link_retraction` (SD-10): mới thiết kế, cài đặt ngay sau 29/11, trước trang QR.
+- `docs/diagrams/qr_sequence.png` chưa xuất (máy chưa có `mmdc`); GitHub hiển thị khối Mermaid trong D1_D2 mục 6C.
+### Còn mở
+- Dung sai ngày `tolerance_days` (hỏi thầy / F&S).
+
+---
+
 ## [v0.5] — 2026-11-25 — đánh giá độc lập vòng 4
 
 Kiểm tra: **87/87** trên SQLite 3.53 và PostgreSQL 16 (57 cũ + 30 mới N1–N30).

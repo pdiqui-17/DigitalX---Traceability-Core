@@ -1,6 +1,7 @@
 PROJECT SCOPE DECISION — Sổ quyết định phạm vi và thiết kế
 Đề tài #6 · Lõi truy xuất nguồn gốc có minh chứng
-Cập nhật: 28/11/2026 · Người chốt: Duy Quý (trưởng nhóm), sau khi bàn với Mạnh Dũng (kỹ thuật)
+Cập nhật: 28/11/2026 (chiều: chốt SD-14, sửa SD-04, SD-15) · Người chốt: Duy Quý (trưởng nhóm),
+sau khi bàn với Mạnh Dũng (kỹ thuật)
 ========================================================================
 
 ĐỌC FILE NÀY THẾ NÀO
@@ -36,8 +37,9 @@ TÓM TẮT — 18 QUYẾT ĐỊNH
   SD-11  Loại lô / loại sự kiện lô giữ cố định                         ĐÃ CHỐT
   SD-12  Trang QR hiện "bị từ chối": nhãn + hoạt động + ngày, không ghi chú ĐÃ CHỐT
   SD-13  Lõi giữ 2 trục; lõi có view ánh xạ ra 4 nhãn hiển thị         ĐÃ CHỐT
-  SD-14  QR là điều kiện nghiệm thu hay best practice                  CHỜ THẦY
-  SD-15  E3/E4 = 6 kịch bản K1–K6 + test truy xuất, SQLite + PostgreSQL ĐÃ CHỐT
+  SD-14  Trang QR là điều kiện nghiệm thu, làm càng sớm càng tốt      ĐÃ CHỐT
+  SD-15  E3/E4 = 6 kịch bản K1–K6 (run_scenarios.py) + test truy xuất
+         (smoke_test.py), cả hai chạy SQLite + PostgreSQL              ĐÃ CHỐT
   SD-16  E2 giữ mức P nếu chưa kiểm thử trực tiếp                      ĐÃ CHỐT
   SD-17  Hai đóng góp: C1 đánh giá minh chứng · C2 truy xuất lô         ĐÃ CHỐT
   SD-18  Evidence Board: tách E3 (cho C1) và E4 (cho C2), không còn dòng M ĐÃ CHỐT
@@ -74,8 +76,8 @@ A. LẬP LUẬN ĐỀ TÀI
          hoặc lệch lịch so với quy trình
       3. Sửa hoạt động: giữ bản cũ, bắt buộc lý do,             C1 C6 F2
          minh chứng cũ không tự áp dụng sang bản mới
-      4. Áp dụng cho cây mới chỉ bằng dữ liệu cấu hình,         K6 (test mới,
-         chạy đủ một chu kỳ                                     thay F15)
+      4. Áp dụng cho cây mới chỉ bằng dữ liệu cấu hình,         K6
+         chạy đủ một chu kỳ                                     (run_scenarios.py)
     Bỏ khỏi tiêu chí O1:
       - "Biểu diễn đủ 11 bước quy trình mè" → chuyển thành tiêu chí đạt của bộ
         dữ liệu mock (Việc 1), không phải tiêu chí của O1.
@@ -117,11 +119,13 @@ OUT = những gì cố ý không làm trong ĐACN, có lý do; nhiều mục chu
     - Dữ liệu mock: 3 hộ ở Tây Ninh, 1 vụ
     - Ghi hoạt động + minh chứng + xác minh; sửa bằng bản mới có lý do
     - Truy ngược / truy xuôi qua gộp, ép, đóng chai
-    - Thêm cây mới bằng dữ liệu cấu hình: lạc (và lúa) là mock để chứng minh
-      khả năng mở rộng, có chạy đủ một chu kỳ
+    - Thêm cây mới bằng dữ liệu cấu hình: lạc và / hoặc lúa là mock để chứng
+      minh khả năng mở rộng, có chạy đủ một chu kỳ. Hiện đã chạy: lạc (K6);
+      lúa chưa có — slide và báo cáo chỉ khẳng định phần đã chạy.
     - Thu mua, vận chuyển: chỉ ghi mốc ngày, không mô hình hóa chuyển quyền sở hữu
-    - Thiết kế danh sách API truy xuất (prototype API chỉ làm nếu dư thời gian)
-    - Trang QR: phụ thuộc SD-14
+    - Thiết kế danh sách API truy xuất: BẮT BUỘC (mô tả đề tài #6, phần ĐACN:
+      "thiết kế schema/API"). Chỉ hiện thực API hoàn chỉnh là OUT (SD-05).
+    - Trang QR tra cứu lô chai trên dữ liệu mock: BẮT BUỘC (SD-14)
   Ảnh hưởng tới: plan.md mục 1 · nhánh Phạm vi slide Fishbone
 
 [SD-05] Phạm vi OUT                                             ĐÃ CHỐT
@@ -276,30 +280,48 @@ C. THIẾT KẾ
 D. MINH CHỨNG CHO ĐACN
 ========================================================================
 
-[SD-14] Vai trò trang QR                                        CHỜ THẦY
-  Vấn đề
-    Ghi nhận cũ (họp với thầy): "QR bắt buộc, làm trước" do nhà đầu tư yêu cầu.
-    Nhóm nay ưu tiên early proof (chứng minh mô hình) là cốt lõi, QR là best
-    practice.
-  Câu hỏi gửi thầy: QR có phải điều kiện nghiệm thu ĐACN không; nếu có, mốc nào
-    phải chạy được?
-  Trong lúc chờ
-    - Không tự hạ QR thành "không bắt buộc" trên slide.
-    - QR KHÔNG còn chặn việc nộp 29/11, vì E4 đã đổi sang minh chứng cho năng lực
-      truy xuất (SD-18), không còn là "trang QR".
-  Ảnh hưởng tới: SD-04 · plan.md Việc 3 · plan.md mục 4
+[SD-14] Vai trò trang QR                                        ĐÃ CHỐT (28/11)
+  Quyết định
+    Trang QR là ĐIỀU KIỆN NGHIỆM THU của ĐACN. Làm càng sớm càng tốt, ngay sau
+    mốc 29/11.
+  Căn cứ
+    - Ghi nhận họp với thầy: nhà đầu tư "khoái chuyện QR code nên cái này là cái
+      bắt buộc luôn để demo và sản phẩm (họ muốn ta làm cái đó trước luôn)".
+    - Mô tả đề tài #6 có "QR lookup experience" trong phần nhóm sẽ làm.
+    - Không còn hỏi thầy câu này (đã bỏ khỏi plan.md mục 4).
+  Thứ tự làm (vì trang QR đọc từ các view này)
+    1. View nhãn hiển thị v_activity_display_state (SD-13)
+    2. Bảng rút lại liên kết minh chứng (SD-10)
+    3. Truy vấn tham số hóa cho một lô (D1_D2 mục 8, dòng 7e)
+    4. Trang QR theo danh sách API và sơ đồ tuần tự trong D1_D2_schema_design.md
+  Giữ nguyên
+    - Early proof (truy ngược chai → hộ → minh chứng) vẫn là cốt lõi của mô hình;
+      QR là cách trình bày của C2 (SD-17), không phải bản thân đóng góp.
+    - Mốc 29/11 không bị chặn: E4 là minh chứng năng lực truy xuất (SD-18). Trên
+      slide, trang QR ghi đúng trạng thái: thiết kế xong, trang "Chưa có".
+  Ảnh hưởng tới: SD-04 · plan.md Việc 3 · plan.md mục 3, 4, 6
 
 [SD-15] Bộ kiểm thử cho E3 / E4                                 ĐÃ CHỐT
   Quyết định
     6 kịch bản K1–K6 trên mock 3 hộ + 1 chu kỳ lạc, chạy trên SQLite và
     PostgreSQL. Chỉ tính đạt theo kết quả chạy thật.
-      K1 truy ngược chai 80ml         → F6 (đã có)
-      K2 truy ngược chai 250ml        → test mới
-      K3 thiếu minh chứng             → F2 F3 F5 (đã có)
-      K4 bị từ chối                   → V4 R5 (đã có)
-      K5 bản ghi bị sửa               → F2 F12 (đã có)
-      K6 thêm cây lạc, chạy đủ chu kỳ → test mới, thay F15 (F15 hiện là hằng
-                                        đúng, không kiểm gì)
+    Hai file, hai vai:
+      - db/run_scenarios.py  BẢN CHÍNH cho K1–K6 (seed_me.sql + seed_lac.sql).
+      - db/smoke_test.py     bộ hồi quy 87 kiểm tra; giữ lại vì các test mà SD-02
+                             trích dẫn cho tiêu chí O1 (F1–F4, R4, N9, N17, V9,
+                             V10, C1, C6) và phần thêm của E4 (R1, N1, N2, F7)
+                             chỉ có ở đây.
+      K1 truy ngược chai 80ml         → run_scenarios K1 (tương ứng F6)
+      K2 truy ngược chai 250ml        → run_scenarios K2
+      K3 thiếu minh chứng             → run_scenarios K3 (tương ứng F2 F3 F5)
+      K4 bị từ chối                   → run_scenarios K4 (tương ứng V4 R5)
+      K5 bản ghi bị sửa               → run_scenarios K5 (tương ứng F2 F12)
+      K6 thêm cây lạc, chạy đủ chu kỳ → run_scenarios K6, Hộ D (gieo → bón →
+                                        phun → thu hoạch → rang → vận chuyển → đóng gói →
+                                        truy ngược). F15 (Hộ E) trong smoke_test
+                                        chỉ là hồi quy cấu hình, không dùng làm K6.
+    Kết quả 28/11: K1–K6 6/6 đạt trên SQLite và PostgreSQL 18; smoke_test 87/87
+    đạt trên cả hai. Log: db/logs/.
     Mức dự kiến: P (dữ liệu mock, 1 vụ, chưa thử dữ liệu thật).
   Ảnh hưởng tới: Evidence Board E3, E4 · plan.md Việc 2 · db/smoke_test.py
 
@@ -331,7 +353,9 @@ D. MINH CHỨNG CHO ĐACN
     Trước đây E4 = "Trang QR" ở mức M. Khi C2 là năng lực truy xuất (SD-17),
     bằng chứng đúng cho C2 là các test truy ngược. Một bộ dữ liệu được dùng cho
     hai khẳng định, miễn ghi rõ liên hệ — hướng dẫn cho phép. Kết quả: không còn
-    dòng M, và câu hỏi QR (SD-14) không chặn mốc 29/11.
+    dòng M, và việc làm trang QR (SD-14) không chặn mốc 29/11.
+  Dẫn nguồn: Evidence Board dẫn thẳng tới file log trong db/logs/ (hướng dẫn
+    3.3: "không chỉ dẫn trang chính của repository").
   Ảnh hưởng tới: slide Evidence Board · plan.md mục 2
 
 
@@ -347,7 +371,9 @@ E. LỊCH SỬ — CÁC QUYẾT ĐỊNH TRƯỚC 27/11 (để tra cứu)
   - Lõi dùng chung + crop profile; cây thứ 2 demo là lạc;
     không hard-code "một vụ = một lần gieo"                    Nhóm, 25/11
   - Visibility, Predictability để ĐATN, schema lưu sẵn dữ liệu Slide công ty
-  - Khung báo cáo: Hướng dẫn bảo vệ ĐACN v4, mẫu slide 2–3      Drive của thầy
+  - Khung báo cáo: Hướng dẫn bảo vệ ĐACN v4 (dùng mẫu Fishbone
+    & Evidence Board phiên bản 3), slide 2–3                   Drive của thầy
+  - QR bắt buộc để demo và sản phẩm, làm trước                 Họp với thầy
   Đã thay thế
-  - "QR bắt buộc, làm trước" (họp với thầy)                    → đang hỏi lại, SD-14
+  - "QR là best practice, hỏi lại thầy" (nhóm, 27/11)          → bỏ; giữ QR bắt buộc, SD-14
   - "4 trạng thái minh chứng" (nhóm, 25/11)                    → thay bằng SD-13

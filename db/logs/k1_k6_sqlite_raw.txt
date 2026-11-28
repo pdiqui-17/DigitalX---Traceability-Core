@@ -1,0 +1,200 @@
+Hệ CSDL: sqlite · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 14:25
+
+────────────────────────────────────────────────────────────
+  K1 — Truy ngược QR-80 → 3 hộ nguồn + tỷ trọng
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT l.public_code, s.share, s.source_status
+        FROM   v_lot_sources s
+        JOIN   lot l ON l.lot_id = s.source_lot_id
+        JOIN   lot b ON b.lot_id = s.root_lot_id
+        WHERE  b.public_code = 'QR-80'
+        ORDER  BY s.share DESC
+  [DB RAW OUTPUT: 3 row(s)]
+    columns: ['public_code', 'share', 'source_status']
+    ('H-A', 0.4, 'harvest')
+    ('H-B', 0.35, 'harvest')
+    ('H-C', 0.25, 'harvest')
+
+  Lô nguồn      Tỷ trọng  Trạng thái
+  ──────────── ─────────  ──────────
+  H-A              40.0%  harvest
+  H-B              35.0%  harvest
+  H-C              25.0%  harvest
+
+  [SQL]
+    SELECT traced_share, trace_state FROM v_lot_status WHERE public_code = 'QR-80'
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['traced_share', 'trace_state']
+    (1.0, 'fully_traced')
+
+  Trạng thái lô : fully_traced  (traced=100.0%)
+  → ✅ ĐẠT  (3 hộ, tổng 100%)
+
+────────────────────────────────────────────────────────────
+  K2 — Truy ngược QR-250 → cùng nguồn với QR-80
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT l.public_code, s.share, s.source_status
+        FROM   v_lot_sources s
+        JOIN   lot l ON l.lot_id = s.source_lot_id
+        JOIN   lot b ON b.lot_id = s.root_lot_id
+        WHERE  b.public_code = 'QR-250'
+        ORDER  BY s.share DESC
+  [DB RAW OUTPUT: 3 row(s)]
+    columns: ['public_code', 'share', 'source_status']
+    ('H-A', 0.4, 'harvest')
+    ('H-B', 0.35, 'harvest')
+    ('H-C', 0.25, 'harvest')
+
+  Lô nguồn      Tỷ trọng  Trạng thái
+  ──────────── ─────────  ──────────
+  H-A              40.0%  harvest
+  H-B              35.0%  harvest
+  H-C              25.0%  harvest
+  → ✅ ĐẠT  (nguồn khớp QR-80 (cùng lô ép))
+
+────────────────────────────────────────────────────────────
+  K3 — Trạng thái chu kỳ: thiếu minh chứng / chưa ghi / undetermined
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT c.cycle_id, cc.cycle_state, cc.n_not_recorded, cc.n_other_problem,
+               COALESCE(cc.on_schedule_ratio, -1)
+        FROM   v_cycle_completeness cc
+        JOIN   cultivation_cycle c ON c.cycle_id = cc.cycle_id
+        WHERE  c.crop_profile_id = 'cp_me'
+        ORDER  BY c.cycle_id
+  [DB RAW OUTPUT: 4 row(s)]
+    columns: ['cycle_id', 'cycle_state', 'n_not_recorded', 'n_other_problem', 'COALESCE(cc.on_schedule_ratio, -1)']
+    ('cy_a', 'complete', 0, 0, 1.0)
+    ('cy_b', 'incomplete', 0, 0, 1.0)
+    ('cy_c', 'incomplete', 1, 0, 1.0)
+    ('cy_c2', 'undetermined', 0, 0, -1)
+
+  Chu kỳ   cycle_state    not_rec  Ghi chú
+  ──────── ────────────── ───────  ───────────────────────────────────
+  cy_a     complete             0  ✓ Đầy đủ minh chứng, đã xác minh
+  cy_b     incomplete           0  ✓ Hộ B sửa liều → bản r2 thiếu ảnh
+  cy_c     incomplete           1  ✓ Hộ C không ghi bón thúc bắt buộc
+  cy_c2    undetermined         0  ✓ Chưa có mốc gieo (cycle_anchor)
+  → ✅ ĐẠT
+
+────────────────────────────────────────────────────────────
+  K4 — Hoạt động bị từ chối → rejected (không nhầm verified)
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT a.activity_id, s.evidence_completeness, s.verification_state
+        FROM   v_activity_status s
+        JOIN   activity a ON a.activity_id = s.activity_id
+        WHERE  a.activity_id IN ('ph_a', 'bt_a', 'bt_b', 'th_a')
+        ORDER  BY a.activity_id
+  [DB RAW OUTPUT: 4 row(s)]
+    columns: ['activity_id', 'evidence_completeness', 'verification_state']
+    ('bt_a', 'complete', 'verified')
+    ('bt_b', 'missing_evidence', 'unverified')
+    ('ph_a', 'complete', 'rejected')
+    ('th_a', 'complete', 'unverified')
+
+  Hoạt động    evidence           verification
+  ──────────── ────────────────── ───────────────
+  bt_a         complete           verified  
+  bt_b         missing_evidence   unverified  
+  ph_a         complete           rejected  ← phải là rejected
+  th_a         complete           unverified  
+  → ✅ ĐẠT  (ph_a → rejected đúng)
+
+────────────────────────────────────────────────────────────
+  K5 — Sửa bản ghi: giữ bản cũ + lý do (append-only)
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT r.revision_no, ai.quantity, r.reason, r.recorded_at
+        FROM   activity_revision r
+        LEFT JOIN activity_input ai ON ai.revision_id = r.revision_id
+        WHERE  r.activity_id = 'bt_b'
+        ORDER  BY r.revision_no
+  [DB RAW OUTPUT: 2 row(s)]
+    columns: ['revision_no', 'quantity', 'reason', 'recorded_at']
+    (1, 30, None, '2026-12-05T18:00:00')
+    (2, 25, 'Ghi nhầm liều: thực tế 25 kg, không phải 30 kg', '2026-12-07T10:00:00')
+
+  Bản ghi hoạt động 'bt_b' (Hộ B bón thúc):
+   Rev    Lượng  Lý do                                          Ghi lúc
+  ────  ───────  ─────────────────────────────────────────────  ──────────────────────
+     1    30 kg  — (bản gốc)                                    2026-12-05T18:00:00
+     2    25 kg  Ghi nhầm liều: thực tế 25 kg, không phải 30 kg  2026-12-07T10:00:00
+
+  Thử UPDATE bản ghi cũ: bị chặn ✓
+  → ✅ ĐẠT  (bản cũ 30 kg còn nguyên, bản mới 25 kg có lý do, UPDATE bị chặn)
+
+────────────────────────────────────────────────────────────
+  K6 — Đổi cây mè → lạc: chỉ INSERT, 0 lệnh DDL
+────────────────────────────────────────────────────────────
+
+  [SQL]
+    SELECT COUNT(*) FROM crop_profile
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['COUNT(*)']
+    (2,)
+
+  Số crop_profile hiện có: 2  (phải ≥ 2: SESAME + PEANUT)
+
+  [SQL]
+    SELECT cc.cycle_state, cc.completeness_ratio, cc.n_not_recorded, cc.n_other_problem
+            FROM   v_cycle_completeness cc WHERE cc.cycle_id = 'cy_d'
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['cycle_state', 'completeness_ratio', 'n_not_recorded', 'n_other_problem']
+    ('complete', 1.0, 0, 0)
+  Chu kỳ lạc cy_d  : complete  (completeness=1.0)
+
+  [SQL]
+    SELECT l.public_code, s.share, s.source_status
+            FROM   v_lot_sources s
+            JOIN   lot l ON l.lot_id = s.source_lot_id
+            JOIN   lot b ON b.lot_id = s.root_lot_id
+            WHERE  b.public_code = 'QR-LAC-200'
+            ORDER  BY s.share DESC
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['public_code', 'share', 'source_status']
+    ('H-D', 1.0, 'harvest')
+
+  Truy ngược QR-LAC-200:
+  Lô nguồn        Tỷ trọng  Trạng thái
+  ────────────── ─────────  ──────────
+  H-D               100.0%  harvest
+
+  [SQL]
+    SELECT COUNT(*)
+            FROM   v_phi_violations
+            WHERE  harvest_activity_id = 'th_d'
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['COUNT(*)']
+    (0,)
+
+  Vi phạm PHI hộ D (lạc)   : 0  (phải = 0, PHI 5 ngày, cách 10 ngày)
+
+  [SQL]
+    SELECT evidence_completeness, verification_state
+            FROM   v_activity_status WHERE activity_id = 'bl_d'
+  [DB RAW OUTPUT: 1 row(s)]
+    columns: ['evidence_completeness', 'verification_state']
+    ('complete', 'verified')
+  Bón lót lạc (bl_d)        : complete / verified
+
+  Bảng ngoài schema gốc : (không có) ✓
+  → ✅ ĐẠT  (lạc: crop_profile + chu kỳ + lô + truy ngược + PHI OK, 0 DDL)
+
+════════════════════════════════════════════════════════════
+  Kết quả (sqlite): 6/6 kịch bản đạt
+    K1  ✅
+    K2  ✅
+    K3  ✅
+    K4  ✅
+    K5  ✅
+    K6  ✅
+════════════════════════════════════════════════════════════
+
