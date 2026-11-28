@@ -1,0 +1,91 @@
+Hệ CSDL: postgres · bộ dữ liệu: seed_me.sql + seed_lac.sql · chạy lúc 2026-11-28 18:02
+
+────────────────────────────────────────────────────────────
+  K1 — Truy ngược QR-80 → 3 hộ nguồn + tỷ trọng
+────────────────────────────────────────────────────────────
+
+  Lô nguồn      Tỷ trọng  Trạng thái
+  ──────────── ─────────  ──────────
+  H-A              40.0%  harvest
+  H-B              35.0%  harvest
+  H-C              25.0%  harvest
+
+  Trạng thái lô : fully_traced  (traced=100.0%)
+  → ✅ ĐẠT  (3 hộ, tổng 100%)
+
+────────────────────────────────────────────────────────────
+  K2 — Truy ngược QR-250 → cùng nguồn với QR-80
+────────────────────────────────────────────────────────────
+
+  Lô nguồn      Tỷ trọng  Trạng thái
+  ──────────── ─────────  ──────────
+  H-A              40.0%  harvest
+  H-B              35.0%  harvest
+  H-C              25.0%  harvest
+  → ✅ ĐẠT  (nguồn khớp QR-80 (cùng lô ép))
+
+────────────────────────────────────────────────────────────
+  K3 — Trạng thái chu kỳ: thiếu minh chứng / chưa ghi / undetermined
+────────────────────────────────────────────────────────────
+
+  Chu kỳ   cycle_state    not_rec  Ghi chú
+  ──────── ────────────── ───────  ───────────────────────────────────
+  cy_a     complete             0  ✓ Đầy đủ minh chứng, đã xác minh
+  cy_b     incomplete           0  ✓ Hộ B sửa liều → bản r2 thiếu ảnh
+  cy_c     incomplete           1  ✓ Hộ C không ghi bón thúc bắt buộc
+  cy_c2    undetermined         0  ✓ Chưa có mốc gieo (cycle_anchor)
+  → ✅ ĐẠT
+
+────────────────────────────────────────────────────────────
+  K4 — Hoạt động bị từ chối → rejected (không nhầm verified)
+────────────────────────────────────────────────────────────
+
+  Hoạt động    evidence           verification
+  ──────────── ────────────────── ───────────────
+  bt_a         complete           verified  
+  bt_b         missing_evidence   unverified  
+  ph_a         complete           rejected  ← phải là rejected
+  th_a         complete           unverified  
+  → ✅ ĐẠT  (ph_a → rejected đúng)
+
+────────────────────────────────────────────────────────────
+  K5 — Sửa bản ghi: giữ bản cũ + lý do (append-only)
+────────────────────────────────────────────────────────────
+
+  Bản ghi hoạt động 'bt_b' (Hộ B bón thúc):
+   Rev    Lượng  Lý do                                          Ghi lúc
+  ────  ───────  ─────────────────────────────────────────────  ──────────────────────
+     1    30 kg  — (bản gốc)                                    2026-12-05 18:00:00
+     2    25 kg  Ghi nhầm liều: thực tế 25 kg, không phải 30 kg  2026-12-07 10:00:00
+
+  Thử UPDATE bản ghi cũ: bị chặn ✓
+  → ✅ ĐẠT  (bản cũ 30 kg còn nguyên, bản mới 25 kg có lý do, UPDATE bị chặn)
+
+────────────────────────────────────────────────────────────
+  K6 — Đổi cây mè → lạc: chỉ INSERT, 0 lệnh DDL
+────────────────────────────────────────────────────────────
+
+  Số crop_profile hiện có: 2  (phải ≥ 2: SESAME + PEANUT)
+  Chu kỳ lạc cy_d  : complete  (completeness=1.0)
+
+  Truy ngược QR-LAC-200:
+  Lô nguồn        Tỷ trọng  Trạng thái
+  ────────────── ─────────  ──────────
+  H-D               100.0%  harvest
+
+  Vi phạm PHI hộ D (lạc)   : 0  (phải = 0, PHI 5 ngày, cách 10 ngày)
+  Bón lót lạc (bl_d)        : complete / verified
+
+  Bảng ngoài schema gốc : (không có) ✓
+  → ✅ ĐẠT  (lạc: crop_profile + chu kỳ + lô + truy ngược + PHI OK, 0 DDL)
+
+════════════════════════════════════════════════════════════
+  Kết quả (postgres): 6/6 kịch bản đạt
+    K1  ✅
+    K2  ✅
+    K3  ✅
+    K4  ✅
+    K5  ✅
+    K6  ✅
+════════════════════════════════════════════════════════════
+

@@ -17,6 +17,37 @@ Kiểm tra: <số đạt>/<tổng> trên SQLite và PostgreSQL
 
 ---
 
+## [v0.5.1] — 2026-11-28 — nhóm chốt sổ quyết định SD-01…SD-18; ghi nhận họp với thầy (QR bắt buộc)
+Kiểm tra: smoke_test **103/103** (87 + W1–W16) và K1–K6 6/6, trên SQLite và PostgreSQL 18; `review_tests` 0 phát hiện chưa xử lý (6 giới hạn đã ghi: SQLite 6 / 48, PostgreSQL 6 / 57) — log ở `db/logs/`. Bảng không đổi; thêm 4 trigger; `v_lot_timeline` chuyển sang `views_<hệ>.sql` và thêm cột `kind_rank`.
+### Sửa lỗi
+- K6 trước đây có hai bản: `F15` (hộ E, chỉ tới lô thu hoạch) và hộ D trong `run_scenarios.py`. Chốt **hộ D là bằng chứng K6 duy nhất**; `F15` giữ làm hồi quy cấu hình.
+- `smoke_test.py postgres` không chạy được trên Windows (`pg_load.sh` dùng đường dẫn Linux). Thay bằng `db/dbtools.py`: kết nối qua `psql`, cấu hình ở `db/.env` (mẫu `.env.example`), database kiểm thử `*_test` bị xóa và tạo lại mỗi lần chạy. `F15` không còn dùng `sqlite_master`.
+- Log chuyển hướng bằng PowerShell bị lỗi font (UTF-16 / sai bảng mã). Thêm `--log <file>`: script tự ghi UTF-8.
+- `review/review_tests.py pg` cũng chuyển sang `dbtools.py` → chạy được trên Windows. Xóa `db/pg_load.sh` (chỉ chạy Linux, không còn nơi dùng) và `db/test_seeds.py` (11 kiểm tra đều đã có trong K1, K3, K6 và `smoke_test`). Phần SQLite giữ nguyên 14 phát hiện / 38 ca như trước khi sửa.
+- Nhóm ca thử mới của bên đánh giá trên v0.5 (trước ghi N1–N13, trùng mã N1–N30 của `smoke_test` mà E4 dẫn) đổi thành **RV1–RV13**; script in riêng các phát hiện đã ghi giới hạn. Chi tiết từng mã: `D1_D2_schema_design.md` mục 0a.
+- **[Cao, QR] RV7** — thêm đầu vào vào sự kiện đóng chai sau khi QR lưu hành → đầu vào phải ghi cùng ngày ghi sự kiện, bổ sung sau chỉ khi đang bị từ chối. (W9)
+- **[Cao, QR] RV12** — sửa thông tin hộ / lô đất đã sinh lô → khóa khi đã có lô thu hoạch. (W12–W14)
+- **[Cao, QR] RV13** — `lot_created` theo giờ nạp → theo thời điểm nghiệp vụ; thêm `kind_rank`. (W15, W16, V6)
+- **[Cao] RV1, RV2** — thêm cấu hình vào crop profile đang dùng đổi kết luận hồi tố → chặn, buộc tạo phiên bản mới. (W1–W3)
+- **[TB] RV3** chu kỳ đã đóng nhận ngày làm sau ngày đóng → chặn (W4, W5) · **RV4** đóng chu kỳ chỉ xét bản ghi hiện hành (W6) · **RV6** sự kiện bị từ chối được bổ sung đầu vào (W7, W8) · **RV11** lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh làm chu kỳ chưa đủ (W11).
+- **[Thấp] RV10** — sha256 khác hoa/thường → đếm theo `LOWER(sha256)`. (W10)
+- Fixture: N17, C13 (`smoke_test`) và nhóm G (`review_tests`) tạo cấu hình trước khi có chu kỳ (khóa RV1/RV2); V6 sắp theo `at, kind_rank`.
+- **P8 (PostgreSQL, lộ ra khi chạy được `review_tests.py pg`):** `v_lot_timeline` lọc số đo IoT theo khoảng chu kỳ bằng cách so chuỗi (`SUBSTR(CAST(observed_at AS TEXT),1,10)` với `CAST(started_at AS TEXT)`). Phiên có `DateStyle = 'SQL, DMY'` cho chuỗi dạng `28/11/2026` → mất số đo (ISO: `o_close,o_in`; DMY: chỉ `o_close`). Sửa: chuyển view từ `schema.sql` sang `gen_views.py`, so bằng kiểu ngày (`date(...)` ở SQLite, `::date` ở PostgreSQL). Tổng số view vẫn 17. Sau sửa P8: `review_tests.py pg` 14 phát hiện / 47 ca đứng vững; sau sửa nhóm RV: 4 / 57 (SQLite 4 / 48), 4 phát hiện còn lại đều là giới hạn đã ghi.
+### Thay đổi thiết kế
+- `run_scenarios.py` là bản chính cho K1–K6, chạy được SQLite và PostgreSQL (`--pg`). Kiểm tra "UPDATE bị chặn" ở K5 giờ đòi đúng thông báo của trigger chỉ-ghi-thêm.
+- `D1_D2_schema_design.md`: thêm 6A (độ đầy đủ 4 cấp — SD-07; nhãn hiển thị — SD-13; "bị từ chối" trên QR — SD-12; rút lại liên kết — SD-10; dịch vụ trung tâm — SD-06), 6B danh sách API A1–A7 + mã lỗi, 6C sơ đồ tuần tự quét QR (`docs/diagrams/qr_sequence.mmd`), 6D điều kiện nghiệm thu trang QR. Mục 6 bỏ "11 bước" khỏi tiêu chí O1 (SD-02).
+- SD-14 chốt: trang QR là điều kiện nghiệm thu (họp với thầy; mô tả đề tài #6).
+### Hoãn / giới hạn
+- `v_activity_display_state` (SD-13) và `evidence_link_retraction` (SD-10): mới thiết kế, cài đặt ngay sau 29/11, trước trang QR.
+- `docs/diagrams/qr_sequence.png` chưa xuất (máy chưa có `mmdc`); GitHub hiển thị khối Mermaid trong D1_D2 mục 6C.
+- Ghi giới hạn (D1_D2 mục 8): RV5 đóng nhầm ngày (dòng 7b); RV8 nạp lại dữ liệu trùng trên SQLite (dòng 16); đầu vào ghi SAI cần `lot_supersession` (dòng 17); đính chính thông tin hộ / lô đất (dòng 18); `recorded_at` do client gửi (dòng 19; nói rõ là ghi lùi ngày thì vượt được quy tắc RV7).
+- **Nhóm tự phát hiện (28/11), ghi giới hạn, sửa cùng đợt trang QR:** **[Cao, QR] RV14**: thêm yêu cầu minh chứng theo loại sự kiện lô làm chai đã in QR đổi `complete` thành `incomplete`, do `f_config_in_use` chỉ khóa yêu cầu theo loại hoạt động (mục 8 dòng 7c, hướng sửa `valid_from`). **[TB] RV15**: thêm luật cách ly sau thu hoạch đổi kết luận PHI, không có dấu vết thời điểm thêm (dòng 20, hướng sửa `recorded_at` + cờ hiển thị). Có ca tái hiện trong `review/review_tests.py`.
+- Đính chính: README mục 2 và bảng file ở D1_D2 còn ghi "87 kiểm tra" → 103.
+### Còn mở
+- Dung sai ngày `tolerance_days` (hỏi thầy / F&S).
+
+---
+
 ## [v0.5] — 2026-11-25 — đánh giá độc lập vòng 4
 
 Kiểm tra: **87/87** trên SQLite 3.53 và PostgreSQL 16 (57 cũ + 30 mới N1–N30).

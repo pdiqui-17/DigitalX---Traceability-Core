@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor NTD as Người tiêu dùng
+    participant QR as Trang QR (web)
+    participant API as Traceability API
+    participant DB as Lõi CSDL (view)
+
+    NTD->>QR: Quét mã trên chai → mở URL /q/{public_code}
+    alt Mất mạng / không tải được trang
+        QR-->>NTD: "Không kết nối được, thử lại" (không hiện dữ liệu cũ như dữ liệu mới)
+    else Có mạng
+        QR->>API: GET /v1/lots/{public_code}
+        API->>API: Kiểm định dạng mã
+        alt Sai định dạng
+            API-->>QR: 400 INVALID_CODE
+            QR-->>NTD: "Mã không hợp lệ"
+        else Đúng định dạng
+            API->>DB: v_lot_current + v_lot_status theo public_code (truy vấn một lô)
+            alt Không có lô
+                DB-->>API: 0 dòng
+                API-->>QR: 404 LOT_NOT_FOUND
+                QR-->>NTD: "Không tìm thấy sản phẩm — có thể là mã giả"
+            else Có lô
+                DB-->>API: sản phẩm, traced/untraceable/complete/verified_share, trace_state, chain_evidence_state
+                API-->>QR: 200 tóm tắt lô
+                QR-->>NTD: Màn tóm tắt: % truy được, % đủ minh chứng, % đã xác minh; phần không truy được hiện rõ
+                opt Bấm "xem nguồn"
+                    QR->>API: GET /v1/lots/{public_code}/sources
+                    API->>DB: v_lot_sources + farm (tỉnh, xã) + v_cycle_completeness
+                    DB-->>API: hộ nguồn, tỷ lệ, trạng thái chu kỳ
+                    API-->>QR: 200 danh sách nguồn
+                    QR-->>NTD: Từng hộ: tỷ lệ góp, trạng thái chu kỳ
+                end
+                opt Bấm "xem nhật ký"
+                    QR->>API: GET /v1/lots/{public_code}/timeline
+                    API->>DB: v_lot_timeline + v_activity_display_state, lọc theo public_level
+                    DB-->>API: sự kiện theo thời gian + nhãn hiển thị
+                    API-->>QR: 200 timeline (ẩn ghi chú xác minh, ẩn tên người)
+                    QR-->>NTD: Hoạt động: Đã xác minh / Tự khai / Thiếu minh chứng / Bị từ chối
+                end
+            end
+        end
+    end

@@ -27,7 +27,8 @@ LEFT JOIN v_activity_status s ON s.activity_id = (
 
 -- Độ đầy đủ theo chu kỳ. "Đến hạn" = không thuộc undetermined / not_due.
 -- cycle_state (đủ minh chứng) và on_schedule_ratio (đúng lịch) tách riêng.
--- n_other_problem: hoạt động KHÔNG bắt buộc đã ghi mà thiếu minh chứng / bị từ chối cũng làm chu kỳ chưa đủ (lỗi F1)
+-- n_other_problem: hoạt động đã ghi mà thiếu minh chứng / bị từ chối và CHƯA được xét ở v_cycle_expected
+--   (loại không bắt buộc — lỗi F1; lần ghi thứ 2 trở đi của loại bắt buộc — RV11) cũng làm chu kỳ chưa đủ
 CREATE VIEW v_cycle_completeness AS
 SELECT x.*,
        CASE WHEN n_due = 0 THEN NULL ELSE 1.0 * n_evidence_complete / n_due END AS completeness_ratio,
@@ -51,9 +52,10 @@ FROM (
          SUM(CASE WHEN verification_state = 'verified' THEN 1 ELSE 0 END) AS n_verified,
          SUM(CASE WHEN verification_state = 'rejected' THEN 1 ELSE 0 END) AS n_rejected,
          (SELECT COUNT(*) FROM v_activity_status s
-          JOIN activity_type t ON t.activity_type_id = s.activity_type_id AND t.requirement <> 'mandatory'
           WHERE s.cycle_id = e.cycle_id
-            AND (s.evidence_completeness <> 'complete' OR s.verification_state = 'rejected')) AS n_other_problem
+            AND (s.evidence_completeness <> 'complete' OR s.verification_state = 'rejected')
+            AND NOT EXISTS (SELECT 1 FROM v_cycle_expected x
+                            WHERE x.cycle_id = s.cycle_id AND x.activity_id = s.activity_id)) AS n_other_problem
   FROM v_cycle_expected e GROUP BY e.cycle_id
 ) x;
 
@@ -202,3 +204,76 @@ WHERE se.crop_code <> p.crop_code
 UNION ALL
 SELECT 'lot_graph_cycle', s.root_lot_id, 'Đồ thị lô có vòng (dữ liệu nạp trước khi có trigger)'
 FROM v_lot_sources s WHERE s.source_status = 'depth_limit_reached';
+
+-- Digital timeline của một lô: hợp nhất mốc chu kỳ, hoạt động canh tác của các chu kỳ nguồn,
+-- số đo cảm biến tại lô đất nguồn, sự kiện lô trên chuỗi và các lần xác minh.
+-- Trang QR, dashboard và AI Story dùng chung view này.
+-- So ngày bằng kiểu DATE (không so chuỗi) để không phụ thuộc DateStyle của phiên PostgreSQL (v0.5.1, P8).
+-- 'lot_created' lấy thời điểm nghiệp vụ (sự kiện / hoạt động thu hoạch tạo ra lô), không lấy giờ nạp (v0.5.1, RV13).
+-- kind_rank: thứ tự khi trùng thời điểm — ORDER BY at, kind_rank (mốc 1, hoạt động 2, số đo 3, sự kiện lô 4, bản ghi lô 5, xác minh 6).
+CREATE VIEW v_lot_timeline AS
+WITH src_cycle AS (
+  SELECT DISTINCT root_lot_id, cycle_id FROM v_lot_sources WHERE source_status = 'harvest'
+)
+SELECT sc.root_lot_id, ca.anchor_date AS at, 'day' AS time_precision, 'cycle_anchor' AS kind,
+       ca.cycle_anchor_id AS ref_id, sc.cycle_id AS detail, ca.recorded_by AS actor_id,
+       NULL AS evidence_state, NULL AS verification_state, 'app' AS source_channel, 1 AS kind_rank
+FROM src_cycle sc JOIN v_cycle_anchor_current ca ON ca.cycle_id = sc.cycle_id
+UNION ALL
+SELECT sc.root_lot_id, r.performed_at, r.time_precision, 'activity',
+       a.activity_id, t.code, r.performed_by,
+       st.evidence_completeness, st.verification_state, a.source_channel, 2
+FROM src_cycle sc
+JOIN activity a            ON a.cycle_id = sc.cycle_id
+JOIN v_activity_status st  ON st.activity_id = a.activity_id
+JOIN activity_revision r   ON r.revision_id = st.revision_id
+JOIN activity_type t       ON t.activity_type_id = a.activity_type_id
+UNION ALL
+SELECT sc.root_lot_id, o.observed_at, 'minute', 'observation',
+       o.observation_id, d.sensor_type, d.agent_id,
+       NULL, NULL, o.source_channel, 3
+FROM src_cycle sc
+JOIN cultivation_cycle c ON c.cycle_id = sc.cycle_id
+JOIN observation o       ON o.plot_id = c.plot_id
+                        AND (o.observed_at)::date >= c.started_at
+                        AND (c.closed_at IS NULL OR (o.observed_at)::date <= c.closed_at)
+JOIN device d            ON d.device_id = o.device_id
+UNION ALL
+SELECT ce.root_lot_id, e.occurred_at, e.time_precision, 'lot_event',
+       e.event_id, e.event_type, e.performed_by,
+       ce.evidence_completeness, ce.verification_state, e.source_channel, 4
+FROM v_lot_chain_events ce JOIN lot_event e ON e.event_id = ce.event_id
+UNION ALL
+SELECT sc.root_lot_id, v.verified_at, 'minute', 'verification',
+       v.verification_id,
+       CASE WHEN r.revision_id <> st.revision_id THEN 'activity (bản ghi cũ)'
+            WHEN v.supersedes_verification_id IS NULL THEN 'activity' ELSE 'activity (thay thế lần trước)' END,
+       v.verifier_id, NULL, v.result, 'app', 6
+FROM src_cycle sc
+JOIN activity a          ON a.cycle_id = sc.cycle_id
+JOIN activity_revision r ON r.activity_id = a.activity_id
+JOIN v_activity_status st ON st.activity_id = a.activity_id
+JOIN verification v      ON v.activity_revision_id = r.revision_id
+UNION ALL
+SELECT ce.root_lot_id, v.verified_at, 'minute', 'verification',
+       v.verification_id,
+       CASE WHEN v.supersedes_verification_id IS NULL THEN 'lot_event' ELSE 'lot_event (thay thế lần trước)' END,
+       v.verifier_id, NULL, v.result, 'app', 6
+FROM v_lot_chain_events ce JOIN verification v ON v.lot_event_id = ce.event_id
+UNION ALL
+SELECT x.root_lot_id,
+       CASE WHEN r.revision_no = 1 THEN COALESCE(ce.occurred_at, ha.performed_at, r.recorded_at) ELSE r.recorded_at END,
+       CASE WHEN r.revision_no = 1 AND ce.event_id IS NOT NULL THEN ce.time_precision
+            WHEN r.revision_no = 1 AND ha.revision_id IS NOT NULL THEN ha.time_precision ELSE 'minute' END,
+       'lot_revision',
+       r.lot_revision_id, CASE WHEN r.revision_no = 1 THEN 'lot_created' ELSE 'lot_corrected' END,
+       r.recorded_by, NULL, NULL, 'app', 5
+FROM v_lot_ancestors x JOIN lot_revision r ON r.lot_id = x.lot_id
+JOIN lot l                     ON l.lot_id = r.lot_id
+LEFT JOIN lot_event ce         ON ce.output_lot_id = r.lot_id
+LEFT JOIN v_activity_current ha ON ha.activity_id = l.harvest_activity_id
+UNION ALL
+SELECT x.root_lot_id, v.verified_at, 'minute', 'verification',
+       v.verification_id, 'lot_revision', v.verifier_id, NULL, v.result, 'app', 6
+FROM v_lot_ancestors x JOIN lot_revision r ON r.lot_id = x.lot_id
+JOIN verification v ON v.lot_revision_id = r.lot_revision_id;

@@ -438,7 +438,7 @@ SELECT a.activity_id, a.cycle_id, a.activity_type_id, c.revision_id, c.revision_
        CASE
          WHEN EXISTS (SELECT 1 FROM evidence_requirement er
                       WHERE er.activity_type_id = a.activity_type_id
-                        AND (SELECT COUNT(DISTINCT COALESCE(e.sha256, e.evidence_id))   -- cùng một file tải 2 lần chỉ tính 1
+                        AND (SELECT COUNT(DISTINCT COALESCE(LOWER(e.sha256), e.evidence_id))   -- cùng một file tải 2 lần chỉ tính 1 (không phân biệt hoa/thường — RV10)
                              FROM evidence_link l JOIN evidence e ON e.evidence_id = l.evidence_id
                              WHERE l.activity_revision_id = c.revision_id AND e.evidence_kind = er.evidence_kind) < er.min_count)
            THEN 'missing_evidence'
@@ -457,7 +457,7 @@ SELECT ev.event_id, ev.event_type, ev.output_lot_id, ev.subject_lot_id, ev.occur
        CASE
          WHEN EXISTS (SELECT 1 FROM evidence_requirement er
                       WHERE er.lot_event_type = ev.event_type
-                        AND (SELECT COUNT(DISTINCT COALESCE(e.sha256, e.evidence_id))
+                        AND (SELECT COUNT(DISTINCT COALESCE(LOWER(e.sha256), e.evidence_id))
                              FROM evidence_link l JOIN evidence e ON e.evidence_id = l.evidence_id
                              WHERE l.lot_event_id = ev.event_id AND e.evidence_kind = er.evidence_kind) < er.min_count)
            THEN 'missing_evidence'
@@ -559,67 +559,6 @@ SELECT DISTINCT x.root_lot_id, s.event_id, s.event_type, s.occurred_at, s.eviden
 FROM v_lot_ancestors x
 JOIN v_lot_event_status s ON s.output_lot_id = x.lot_id OR s.subject_lot_id = x.lot_id;
 
--- Digital timeline của một lô: hợp nhất mốc chu kỳ, hoạt động canh tác của các chu kỳ nguồn,
--- số đo cảm biến tại lô đất nguồn, sự kiện lô trên chuỗi và các lần xác minh.
--- Trang QR, dashboard và AI Story dùng chung view này.
-CREATE VIEW v_lot_timeline AS
-WITH src_cycle AS (
-  SELECT DISTINCT root_lot_id, cycle_id FROM v_lot_sources WHERE source_status = 'harvest'
-)
-SELECT sc.root_lot_id, ca.anchor_date AS at, 'day' AS time_precision, 'cycle_anchor' AS kind,
-       ca.cycle_anchor_id AS ref_id, sc.cycle_id AS detail, ca.recorded_by AS actor_id,
-       NULL AS evidence_state, NULL AS verification_state, 'app' AS source_channel
-FROM src_cycle sc JOIN v_cycle_anchor_current ca ON ca.cycle_id = sc.cycle_id
-UNION ALL
-SELECT sc.root_lot_id, r.performed_at, r.time_precision, 'activity',
-       a.activity_id, t.code, r.performed_by,
-       st.evidence_completeness, st.verification_state, a.source_channel
-FROM src_cycle sc
-JOIN activity a            ON a.cycle_id = sc.cycle_id
-JOIN v_activity_status st  ON st.activity_id = a.activity_id
-JOIN activity_revision r   ON r.revision_id = st.revision_id
-JOIN activity_type t       ON t.activity_type_id = a.activity_type_id
-UNION ALL
-SELECT sc.root_lot_id, o.observed_at, 'minute', 'observation',
-       o.observation_id, d.sensor_type, d.agent_id,
-       NULL, NULL, o.source_channel
-FROM src_cycle sc
-JOIN cultivation_cycle c ON c.cycle_id = sc.cycle_id
-JOIN observation o       ON o.plot_id = c.plot_id
-                        AND SUBSTR(CAST(o.observed_at AS TEXT), 1, 10) >= CAST(c.started_at AS TEXT)
-                        AND (c.closed_at IS NULL OR SUBSTR(CAST(o.observed_at AS TEXT), 1, 10) <= CAST(c.closed_at AS TEXT))
-JOIN device d            ON d.device_id = o.device_id
-UNION ALL
-SELECT ce.root_lot_id, e.occurred_at, e.time_precision, 'lot_event',
-       e.event_id, e.event_type, e.performed_by,
-       ce.evidence_completeness, ce.verification_state, e.source_channel
-FROM v_lot_chain_events ce JOIN lot_event e ON e.event_id = ce.event_id
-UNION ALL
-SELECT sc.root_lot_id, v.verified_at, 'minute', 'verification',
-       v.verification_id,
-       CASE WHEN r.revision_id <> st.revision_id THEN 'activity (bản ghi cũ)'
-            WHEN v.supersedes_verification_id IS NULL THEN 'activity' ELSE 'activity (thay thế lần trước)' END,
-       v.verifier_id, NULL, v.result, 'app'
-FROM src_cycle sc
-JOIN activity a          ON a.cycle_id = sc.cycle_id
-JOIN activity_revision r ON r.activity_id = a.activity_id
-JOIN v_activity_status st ON st.activity_id = a.activity_id
-JOIN verification v      ON v.activity_revision_id = r.revision_id
-UNION ALL
-SELECT ce.root_lot_id, v.verified_at, 'minute', 'verification',
-       v.verification_id,
-       CASE WHEN v.supersedes_verification_id IS NULL THEN 'lot_event' ELSE 'lot_event (thay thế lần trước)' END,
-       v.verifier_id, NULL, v.result, 'app'
-FROM v_lot_chain_events ce JOIN verification v ON v.lot_event_id = ce.event_id
-UNION ALL
-SELECT x.root_lot_id, r.recorded_at, 'minute', 'lot_revision',
-       r.lot_revision_id, CASE WHEN r.revision_no = 1 THEN 'lot_created' ELSE 'lot_corrected' END,
-       r.recorded_by, NULL, NULL, 'app'
-FROM v_lot_ancestors x JOIN lot_revision r ON r.lot_id = x.lot_id
-UNION ALL
-SELECT x.root_lot_id, v.verified_at, 'minute', 'verification',
-       v.verification_id, 'lot_revision', v.verifier_id, NULL, v.result, 'app'
-FROM v_lot_ancestors x JOIN lot_revision r ON r.lot_id = x.lot_id
-JOIN verification v ON v.lot_revision_id = r.lot_revision_id;
+-- v_lot_timeline (digital timeline của một lô) có phép so ngày → nằm ở views_<hệ>.sql, sinh bởi gen_views.py (v0.5.1, P8).
 
 -- v_integrity_issues: định nghĩa trong views_<hệ>.sql (cần phép so ngày)

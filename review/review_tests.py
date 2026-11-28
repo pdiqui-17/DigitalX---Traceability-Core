@@ -1,16 +1,28 @@
 """Ca thử phản biện schema v0.4 (người đánh giá độc lập).
 
     cd /tmp/review_v04 && python3 review_tests.py            # SQLite, mọi ca
-    python3 review_tests.py pg                               # thêm các ca trigger trên PostgreSQL (cần db/pg_load.sh)
+    python3 review_tests.py pg                               # thêm các ca trigger trên PostgreSQL (cấu hình ở db/.env, qua db/dbtools.py)
     python3 review_tests.py perf [n_farms] [n_lots]          # đo hiệu năng SQLite (mặc định 200 hộ, 2000 lô)
 
 Mỗi ca dựng CSDL mới từ db/schema.sql + triggers + views, nạp bộ dữ liệu nền nhỏ
 (3 hộ → gộp lô RAW → ép dầu PROC → chai 80ml/250ml), rồi thử phá.
 Dòng 'PHÁT HIỆN' = hành vi khác với mong đợi của đề bài; 'OK' = thiết kế đứng vững.
 """
-import sqlite3, subprocess, sys, time, pathlib, random
+import sqlite3, sys, time, pathlib, random
 
 DB_DIR = pathlib.Path(__file__).parent.parent / "db"
+sys.path.insert(0, str(DB_DIR))
+from dbtools import DBError, Postgres, setup_output  # noqa: E402
+
+# Phát hiện nhóm đã chấp nhận và ghi thành giới hạn (docs/D1_D2_schema_design.md mục 8) — vẫn chạy, báo riêng
+KNOWN_LIMITS = {
+    "G2": "mục 8 dòng 7d — thu hoạch nhiều đợt (ĐATN)",
+    "G4": "mục 8 dòng 7d — hai chu kỳ chồng nhau trên một lô đất (ĐATN)",
+    "RV5": "mục 8 dòng 7b — đóng chu kỳ nhầm ngày chưa đính chính được",
+    "RV8": "mục 8 dòng 16 — SQLite không phân biệt INSERT OR IGNORE với INSERT; nạp lại dùng INSERT … WHERE NOT EXISTS",
+    "RV14": "mục 8 dòng 7c — yêu cầu minh chứng theo loại sự kiện lô chưa có hiệu lực theo ngày (sửa cùng đợt trang QR)",
+    "RV15": "mục 8 dòng 20 — luật cách ly không ghi thời điểm thêm (sửa cùng đợt trang QR)",
+}
 T = "2026-11-25T08:00:00"
 findings, oks = [], []
 
@@ -39,7 +51,7 @@ class Fx:
         return "\n".join(self.sql)
 
 
-def base_fixture(n_farms=3, extra_plots=False, open_cycles=(), er1_min=1):
+def base_fixture(n_farms=3, extra_plots=False, open_cycles=(), er1_min=1, multi_harvest=False):
     # v0.5: config và closed_at không UPDATE được nữa → tham số hoá ngay khi dựng dữ liệu
     f = Fx()
     for a in ["u_fns:organization:company", "u_qa:person:company", "u_ktv:person:technician", "u_dev:device:system"]:
@@ -51,6 +63,8 @@ def base_fixture(n_farms=3, extra_plots=False, open_cycles=(), er1_min=1):
     f.ins("activity_type", "at_bt", "st1", "TOP_DRESS", "Bón thúc", "mandatory", 15, 3, 0, 1, None, "detail", None, 0)
     f.ins("activity_type", "at_ph", "st1", "SPRAY", "Phun", "conditional", None, 0, 0, 1, None, "detail", None, 0)
     f.ins("activity_type", "at_th", "st2", "HARVEST", "Thu hoạch", "mandatory", 80, 7, 1, 0, None, "summary", None, 0)
+    if multi_harvest:   # v0.5.1: cấu hình phải có trước khi crop profile có chu kỳ (RV1/RV2) → tạo cùng lúc dựng dữ liệu
+        f.ins("activity_type", "at_th2", "st2", "HARVEST_2", "Thu hoạch đợt 2", "optional", None, 0, 1, 0, None, "summary", None, 0)
     f.ins("evidence_requirement", "er1", "at_bt", None, "photo", er1_min, None, 0)
     f.ins("evidence_requirement", "er2", "at_ph", None, "photo", 1, None, 0)
     f.ins("evidence_requirement", "er3", "at_th", None, "weighing_slip", 1, None, 0)
@@ -241,10 +255,9 @@ def run_sqlite():
 
     # ---------- G. Timeline ----------
     print("\nG · Digital timeline")
-    f = base_fixture(open_cycles=("c2",))
+    f = base_fixture(open_cycles=("c2",), multi_harvest=True)
     f.ins("verification", "vlr", None, "proc_r1", None, "u_qa", "rejected", "document_review", "lab sai", None, None, "2027-02-21T00:00:00", T)
-    # chu kỳ 1 thu hoạch 2 đợt; phun thuốc SAU đợt 1
-    f.ins("activity_type", "at_th2", "st2", "HARVEST_2", "Thu hoạch đợt 2", "optional", None, 0, 1, 0, None, "summary", None, 0)
+    # chu kỳ 1 thu hoạch 2 đợt (loại at_th2 tạo trong base_fixture); phun thuốc SAU đợt 1
     f.act("ph_late", "c1", "at_ph", "u1", "2027-02-15"); f.evid("photo", "activity_revision_id", "ph_late_r1")
     f.act("th1b", "c1", "at_th2", "u1", "2027-02-20"); f.lot("h1b", "harvest", 50, "kg", harvest="th1b")
     # cảm biến: số đo trong ngày đóng chu kỳ; số đo trước ngày bắt đầu; chu kỳ mở (c2 đóng NULL) + vụ sau trên cùng lô đất
@@ -369,50 +382,50 @@ def run_sqlite():
 
 def run_new_v05():
     """Ca thử MỚI nhắm vào chính các bản sửa v0.5."""
-    print("\n=== N · Lỗi mới do bản sửa v0.5 (SQLite) ===")
+    print("\n=== RV · Lỗi mới do bản sửa v0.5 (SQLite) — mã RV để không trùng N1–N30 của smoke_test ===")
     T2 = "2027-03-15T08:00:00"
-    # N1/N2: config append-only nhưng INSERT thêm luật vẫn đổi kết luận hồi tố
+    # RV1/N2: config append-only nhưng INSERT thêm luật vẫn đổi kết luận hồi tố
     db = SQLiteDB(base_fixture())
     b = (db.one("SELECT evidence_completeness FROM v_activity_status WHERE activity_id='bt1'")[0],
          num(db.one("SELECT complete_share FROM v_lot_status WHERE lot_id='b80'")[0]))
     ok = db.ok("INSERT INTO evidence_requirement VALUES ('er_sig','at_bt',NULL,'signature',1,'luật mới 2027',0)")[0]
     a = (db.one("SELECT evidence_completeness FROM v_activity_status WHERE activity_id='bt1'")[0],
          num(db.one("SELECT complete_share FROM v_lot_status WHERE lot_id='b80'")[0]))
-    report("N1", not ok or a == b, "thêm evidence_requirement mới làm đổi trạng thái hoạt động của chu kỳ ĐÃ ĐÓNG",
+    report("RV1", not ok or a == b, "thêm evidence_requirement mới làm đổi trạng thái hoạt động của chu kỳ ĐÃ ĐÓNG",
            f"INSERT ok={ok}; bt1 (đóng 28/02) & complete_share QR-b80: {b} → {a}")
     db = SQLiteDB(base_fixture())
     b = db.x("SELECT cycle_id, cycle_state FROM v_cycle_completeness WHERE cycle_id IN ('c1','c2') ORDER BY 1")
     ok = db.ok("INSERT INTO activity_type VALUES ('at_new','st1','TOP_DRESS_2','Bón thúc 2','mandatory',30,3,0,1,NULL,'detail','luật mới',0)")[0]
     a = db.x("SELECT cycle_id, cycle_state FROM v_cycle_completeness WHERE cycle_id IN ('c1','c2') ORDER BY 1")
-    report("N2", not ok or a == b, "thêm activity_type bắt buộc vào giai đoạn đang dùng làm chu kỳ cũ thành 'incomplete'",
+    report("RV2", not ok or a == b, "thêm activity_type bắt buộc vào giai đoạn đang dùng làm chu kỳ cũ thành 'incomplete'",
            f"INSERT ok={ok}; {b} → {a}")
-    # N3: ghi hoạt động SAU khi chu kỳ đã đóng
+    # RV3: ghi hoạt động SAU khi chu kỳ đã đóng
     db = SQLiteDB(base_fixture())
     ok1 = db.ok("INSERT INTO activity VALUES ('late','c1','at_ph','u1','%s','app',NULL)" % T2)[0]
     ok2 = db.ok("INSERT INTO activity_revision VALUES ('late_r1','late',1,'2027-03-10','day','u1',NULL,'u1','%s',NULL)" % T2)[0]
     ok3 = db.ok("INSERT INTO activity_revision VALUES ('th1_r2','th1',2,'2027-03-12','day','u1',NULL,'u1','%s','sửa ngày')" % T2)[0]
     iss = [i for i in db.x("SELECT issue, subject_id FROM v_integrity_issues") if i[1] in ("late", "th1", "c1")]
-    report("N3", not (ok2 or ok3) or bool(iss), "chu kỳ đóng 28/02 vẫn nhận hoạt động/bản sửa ngày 10–12/03 (vượt bất biến closed_at ≥ hoạt động cuối)",
+    report("RV3", not (ok2 or ok3) or bool(iss), "chu kỳ đóng 28/02 vẫn nhận hoạt động/bản sửa ngày 10–12/03 (vượt bất biến closed_at ≥ hoạt động cuối)",
            f"activity ok={ok1}, revision ok={ok2}, sửa ngày thu hoạch ok={ok3}; v_integrity_issues={iss}")
-    # N9: bản ghi CŨ có ngày sai chặn việc đóng chu kỳ
+    # RV4: bản ghi CŨ có ngày sai chặn việc đóng chu kỳ
     db = SQLiteDB(base_fixture(open_cycles=("c2",)))
     db.c.executescript("INSERT INTO activity_revision VALUES ('th2_r2','th2',2,'2027-03-05','day','u2',NULL,'u2','%s','gõ nhầm');"
                        "INSERT INTO activity_revision VALUES ('th2_r3','th2',3,'2027-02-10','day','u2',NULL,'u2','%s','sửa lại đúng');" % (T, T))
     ok, err = db.ok("UPDATE cultivation_cycle SET closed_at='2027-02-28' WHERE cycle_id='c2'")
-    report("N4", ok, "đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau closed_at", f"ok={ok} {err} — trigger xét mọi revision, không chỉ bản hiện hành")
+    report("RV4", ok, "đóng chu kỳ khi chỉ bản ghi CŨ (đã sửa) có ngày sau closed_at", f"ok={ok} {err} — trigger xét mọi revision, không chỉ bản hiện hành")
     db2 = SQLiteDB(base_fixture(open_cycles=("c2",)))
     db2.ok("UPDATE cultivation_cycle SET closed_at='2027-02-10' WHERE cycle_id='c2'")
     ok, err = db2.ok("UPDATE cultivation_cycle SET closed_at='2027-02-20' WHERE cycle_id='c2'")
-    report("N5", ok, "đóng nhầm ngày thì không có cách sửa có lý do (không có bảng lịch sử đóng)", f"ok={ok} {err}")
-    # N6: QA từ chối sự kiện gộp vì thiếu một phiếu đầu vào → không thể bổ sung đầu vào
+    report("RV5", ok, "đóng nhầm ngày thì không có cách sửa có lý do (không có bảng lịch sử đóng)", f"ok={ok} {err}")
+    # RV6: QA từ chối sự kiện gộp vì thiếu một phiếu đầu vào → không thể bổ sung đầu vào
     f = base_fixture()
     f.lot("raw2", "aggregated", 20, "kg"); f.event("e_g2", "aggregation", "raw2", None, "2027-02-12", [("h1", 10, "kg")])
     f.evid("weighing_slip", "lot_event_id", "e_g2")
     f.ins("verification", "vrej", None, None, "e_g2", "u_qa", "rejected", "document_review", "thiếu lô hộ 2", None, None, T, T)
     db = SQLiteDB(f)
     ok, err = db.ok("INSERT INTO lot_input VALUES ('e_g2','h2',10,'kg','u_fns','%s')" % T)
-    report("N6", ok, "bổ sung đầu vào sau khi xác minh 'rejected' (luồng sửa hợp lệ)", f"ok={ok} ({err}) — chặn cả khi kết luận là từ chối")
-    # N7: K3 còn hở ở lô LÁ (lô chai không được dùng tiếp, sự kiện chưa xác minh)
+    report("RV6", ok, "bổ sung đầu vào sau khi xác minh 'rejected' (luồng sửa hợp lệ)", f"ok={ok} ({err}) — chặn cả khi kết luận là từ chối")
+    # RV7: K3 còn hở ở lô LÁ (lô chai không được dùng tiếp, sự kiện chưa xác minh)
     f = base_fixture()
     f.lot("proc2", "processed", 400, "l"); f.event("e_ep2", "transformation", "proc2", None, "2027-02-20", [("h1", 100, "kg")])
     f.evid("photo", "lot_event_id", "e_ep2")
@@ -421,53 +434,75 @@ def run_new_v05():
     ok, err = db.ok("INSERT INTO lot_input VALUES ('e_b80','proc2',200,'l','u_fns','2027-06-01T00:00:00')")
     a = num(db.one("SELECT share FROM v_lot_sources WHERE root_lot_id='b80' AND source_lot_id='h1'")[0])
     iss = [i for i in db.x("SELECT issue, subject_id FROM v_integrity_issues") if i[1] in ("e_b80", "b80")]
-    report("N7", not ok, "thêm đầu vào vào sự kiện ĐÓNG CHAI (lô lá) 3 tháng sau, khi QR đã lưu hành",
+    report("RV7", not ok, "thêm đầu vào vào sự kiện ĐÓNG CHAI (lô lá) 3 tháng sau, khi QR đã lưu hành",
            f"ok={ok}; tỷ trọng H1 của QR-b80: {b} → {a}; v_integrity_issues={iss}")
-    # N8: nạp lại idempotent (INSERT OR IGNORE / ON CONFLICT DO NOTHING) bị trigger T0 làm lỗi
+    # RV8: nạp lại idempotent (INSERT OR IGNORE / ON CONFLICT DO NOTHING) bị trigger T0 làm lỗi
     db = SQLiteDB(base_fixture())
     db.c.executescript("INSERT INTO device VALUES ('d1','u_dev','soil','%%','p1',NULL,'u_fns','%s');"
                        "INSERT INTO observation VALUES ('o1','d1','2026-12-01T06:00:00',20,'p1',NULL,'%s','import','GW-1');" % (T, T))
     ok1, e1 = db.ok("INSERT OR IGNORE INTO observation VALUES ('o1','d1','2026-12-01T06:00:00',20,'p1',NULL,'%s','import','GW-1')" % T)
     ok2, e2 = db.ok("INSERT INTO observation VALUES ('o1b','d1','2026-12-01T06:00:00',20,'p1',NULL,'%s','import','GW-1') ON CONFLICT DO NOTHING" % T)
-    report("N8", ok1 and ok2, "nạp lại cùng mã ngoài bằng INSERT OR IGNORE / ON CONFLICT DO NOTHING (import idempotent)",
+    report("RV8", ok1 and ok2, "nạp lại cùng mã ngoài bằng INSERT OR IGNORE / ON CONFLICT DO NOTHING (import idempotent)",
            f"OR IGNORE ok={ok1} ({e1}); ON CONFLICT DO NOTHING ok={ok2} ({e2}); trên PG câu thứ hai chạy được → hai hệ khác hành vi")
-    # N10: sha256 khác hoa/thường → J1 lách được
+    # RV10: sha256 khác hoa/thường → J1 lách được
     f = base_fixture(er1_min=2)
     f.act("bt3", "c3", "at_bt", "u3", "2026-12-05", [("m_ure", 1, "kg")])
     f.evid("photo", "activity_revision_id", "bt3_r1", sha="abcdef"); f.evid("photo", "activity_revision_id", "bt3_r1", sha="ABCDEF")
     db = SQLiteDB(f)
     r = db.one("SELECT evidence_completeness FROM v_activity_status WHERE activity_id='bt3'")[0]
-    report("N10", r != "complete", "cùng file, sha256 viết hoa/thường khác nhau, đếm thành 2", f"bt3 = {r}; sha256 không CHECK định dạng (64 ký tự hex thường)")
-    # N11: bản ghi trùng của hoạt động BẮT BUỘC thiếu minh chứng không bị n_other_problem bắt
+    report("RV10", r != "complete", "cùng file, sha256 viết hoa/thường khác nhau, đếm thành 2", f"bt3 = {r}; sha256 không CHECK định dạng (64 ký tự hex thường)")
+    # RV11: bản ghi trùng của hoạt động BẮT BUỘC thiếu minh chứng không bị n_other_problem bắt
     f = base_fixture()
     f.act("bt1_dup", "c1", "at_bt", "u1", "2026-12-06", [("m_ure", 5, "kg")])   # lần ghi thứ 2, không ảnh
     db = SQLiteDB(f)
     r = db.one("SELECT evidence_completeness FROM v_activity_status WHERE activity_id='bt1_dup'")[0]
     c = db.one("SELECT cycle_state, n_other_problem FROM v_cycle_completeness WHERE cycle_id='c1'")
-    report("N11", c[0] != "complete", "lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh", f"bt1_dup={r}; c1={c} (chỉ bản ghi đầu tiên được xét; n_other_problem lọc requirement<>'mandatory')")
-    # N12: thông tin công khai của farm/plot vẫn sửa tự do
+    report("RV11", c[0] != "complete", "lần ghi thứ 2 của hoạt động bắt buộc thiếu ảnh", f"bt1_dup={r}; c1={c} (chỉ bản ghi đầu tiên được xét; n_other_problem lọc requirement<>'mandatory')")
+    # RV12: thông tin công khai của farm/plot vẫn sửa tự do
     db = SQLiteDB(base_fixture())
     ok1 = db.ok("UPDATE farm SET name='Hộ khác', province='Bình Thuận', commune='X' WHERE farm_id='f1'")[0]
     ok2 = db.ok("UPDATE plot SET geo_point='10.9,108.1', area_m2=1, growing_area_code='VG-999' WHERE plot_id='p1'")[0]
-    report("N12", not (ok1 or ok2), "đổi tỉnh/xã/tên hộ, toạ độ, mã vùng trồng của lô đất đã sinh lô (trang QR đổi theo)",
+    report("RV12", not (ok1 or ok2), "đổi tỉnh/xã/tên hộ, toạ độ, mã vùng trồng của lô đất đã sinh lô (trang QR đổi theo)",
            f"farm UPDATE ok={ok1}, plot UPDATE ok={ok2}; không có lịch sử")
-    # N13: timeline đặt 'lot_created' theo recorded_at (giờ ghi/nạp), không theo thời điểm nghiệp vụ
+    # RV13: timeline đặt 'lot_created' theo recorded_at (giờ ghi/nạp), không theo thời điểm nghiệp vụ
     db = SQLiteDB(base_fixture())
     tl = db.x("SELECT at, kind, ref_id, detail FROM v_lot_timeline WHERE root_lot_id='b80' ORDER BY at")
     pos = [i for i, r in enumerate(tl) if r[2] == "b80_r1"][0]; pev = [i for i, r in enumerate(tl) if r[2] == "e_b80"][0]
-    report("N13", pos >= pev, "mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó",
+    report("RV13", pos >= pev, "mốc 'lot_created' của QR-b80 nằm sau sự kiện đóng chai tạo ra nó",
            f"lot_created at={tl[pos][0]} (vị trí {pos}) trước cả hoạt động canh tác; đóng chai at={tl[pev][0]} (vị trí {pev}) — dữ liệu import/backfill sẽ dồn về ngày nạp")
+    # RV14 (nhóm tự phát hiện, 28/11): cùng loại RV1 nhưng yêu cầu theo LOẠI SỰ KIỆN LÔ — không gắn crop profile nên lọt f_config_in_use
+    db = SQLiteDB(base_fixture())
+    sel = "SELECT lot_id, chain_evidence_state FROM v_lot_status WHERE lot_id IN ('b80','b250') ORDER BY 1"
+    b = db.x(sel)
+    ok = db.ok("INSERT INTO evidence_requirement VALUES ('er_pack',NULL,'packaging','photo',1,'luật mới 2027',0)")[0]
+    a = db.x(sel)
+    report("RV14", not ok or a == b, "thêm yêu cầu minh chứng cho loại sự kiện 'packaging' làm đổi trạng thái chai ĐÃ IN QR",
+           f"INSERT ok={ok}; {b} → {a}")
+    # RV15 (nhóm tự phát hiện, 28/11): luật cách ly thêm SAU thu hoạch đổi kết luận PHI, không để lại dấu thời điểm thêm
+    f = base_fixture()
+    f.ins("input_material", "m_y", "pesticide", "Thuốc Y", None, None, "l")
+    f.act("ph1", "c1", "at_ph", "u1", "2027-02-05", [("m_y", 1, "l")])   # phun 5 ngày trước thu hoạch 10/02, chưa có luật cho mè
+    f.evid("photo", "activity_revision_id", "ph1_r1")
+    db = SQLiteDB(f)
+    cnt = ("SELECT (SELECT COUNT(*) FROM v_phi_violations),"
+           " (SELECT COUNT(*) FROM v_integrity_issues WHERE issue='missing_phi_rule')")
+    b = db.one(cnt)
+    ok = db.ok("INSERT INTO material_crop_rule VALUES ('m_y','SESAME',0,'bổ sung sau thu hoạch',1)")[0]   # luật lỏng
+    a = db.one(cnt)
+    report("RV15", not ok or a == b, "thêm luật cách ly (phi_days=0) cho thuốc đã phun sau khi vụ thu hoạch: cảnh báo 'thiếu luật' biến mất, không vi phạm, không dấu vết",
+           f"INSERT ok={ok}; (vi phạm, thiếu luật): {tuple(b)} → {tuple(a)}; luật không có recorded_at")
 
 
 def run_pg():
     print("\n=== Trigger PostgreSQL ===")
-    r = subprocess.run([str(DB_DIR / "pg_load.sh")], capture_output=True, text=True)
-    print("  " + (r.stdout.strip() or r.stderr.strip()))
-    CMD = ["psql", "-h", "/tmp/pg", "-p", "5544", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-tA", "-q"]
+    db = Postgres()   # xóa + tạo lại PGDATABASE (*_test), nạp schema + trigger + view
+    print(f"  PostgreSQL OK ({db.dbname})")
 
     def pg(sql):
-        p = subprocess.run(CMD, input=sql, capture_output=True, text=True)
-        return p.returncode == 0, (p.stdout + p.stderr).strip()
+        try:
+            return True, db._psql(db.dbname, sql).strip()
+        except DBError as e:
+            return False, str(e).strip()
     ok, out = pg(base_fixture().text())
     if not ok:
         print("  nạp dữ liệu nền lỗi:", out[:300]); return
@@ -496,7 +531,7 @@ def run_pg():
                  "INSERT INTO observation VALUES ('o_out','d1','2027-03-05 06:00:00',20,'p1',NULL,now(),'iot_gateway','z');")
     a = pg("SELECT string_agg(ref_id, ',' ORDER BY ref_id) FROM v_lot_timeline WHERE root_lot_id='h1' AND kind='observation';")
     b = pg("SET datestyle='SQL, DMY'; SELECT string_agg(ref_id, ',' ORDER BY ref_id) FROM v_lot_timeline WHERE root_lot_id='h1' AND kind='observation';")
-    report("P8", a == b, "PG: timeline không phụ thuộc DateStyle của phiên (view so ngày bằng CAST AS TEXT)", f"ISO: {a} số đo; 'SQL, DMY': {b} số đo")
+    report("P8", a == b, "PG: timeline không phụ thuộc DateStyle của phiên (view so ngày bằng kiểu DATE)", f"ISO: {a} số đo; 'SQL, DMY': {b} số đo")
     ok, out = pg("INSERT INTO observation VALUES ('o2','d1','2026-12-02 06:00:00',20,'p1',NULL,now(),'import','GW-1');"
                  "INSERT INTO observation VALUES ('o2b','d1','2026-12-02 06:00:00',20,'p1',NULL,now(),'import','GW-1') ON CONFLICT DO NOTHING;")
     report("P9", ok, "PG: nạp lại idempotent ON CONFLICT DO NOTHING (đối chiếu N8)", out or "ok")
@@ -555,6 +590,7 @@ def run_perf(n_farms=200, n_lots=2000):
 
 
 if __name__ == "__main__":
+    sys.argv = setup_output(sys.argv)
     mode = sys.argv[1] if len(sys.argv) > 1 else "sqlite"
     if mode == "perf":
         run_perf(*(int(x) for x in sys.argv[2:4]))
@@ -563,5 +599,9 @@ if __name__ == "__main__":
         run_new_v05()
         if mode == "pg":
             run_pg()
-        print(f"\nTổng: {len(findings)} phát hiện, {len(oks)} ca đứng vững")
-        print("Phát hiện:", ", ".join(findings))
+        open_ = [c for c in findings if c not in KNOWN_LIMITS]
+        known = [c for c in findings if c in KNOWN_LIMITS]
+        print(f"\nTổng: {len(findings)} phát hiện ({len(open_)} chưa xử lý, {len(known)} đã ghi giới hạn), {len(oks)} ca đứng vững")
+        print("Chưa xử lý:", ", ".join(open_) or "—")
+        for c in known:
+            print(f"Đã ghi giới hạn: {c} — {KNOWN_LIMITS[c]}")
